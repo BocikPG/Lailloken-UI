@@ -1,3 +1,5 @@
+### It's just a fork nothing fancy here, just personal changes
+
 ## About:
 A light-weight AHK script with UI and QoL features for Path of Exile, emphasizing ease-of-use, minimalist design, low hotkey requirements, and seamless integration into the game-client. **`This project is not affiliated with or endorsed by Grinding Gear Games (GGG) in any way`**.  
 <br>
