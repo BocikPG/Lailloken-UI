@@ -287,6 +287,7 @@ HotkeysTab()
 *3::
 *4::
 *5::
+*6::
 ~+LButton::
 ~*RButton::Stash_Hotkeys()
 
