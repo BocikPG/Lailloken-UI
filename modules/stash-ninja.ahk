@@ -247,6 +247,40 @@ Stash_FetchRealPrices(cHWND := "")
 	global vars, settings
 
 	vars.stash.true_price["truepricestatus_" vars.stash.active] := "working!"
+
+	item := "chrome"
+
+	payload := "{""query"":{""status"":{""option"":""online""},""have"":[""divine""],""want"":[""" item """]},""sort"":{""have"":""asc""},""engine"":""new""}"
+
+	OutputDebug, % payload
+	OutputDebug, % settings.stash.league
+
+	HTTP := ComObjCreate("WinHttp.WinHttpRequest.5.1")
+	HTTP.Open("POST", "https://www.pathofexile.com/api/trade/exchange/" settings.stash.league)
+	HTTP.SetRequestHeader("User-Agent", "OPR/106.0.0.0")
+	HTTP.SetRequestHeader("Content-Type", "application/json")
+
+	IfWinExist, Fiddler
+		HTTP.SetProxy(2,"localhost:8888")
+
+	HTTP.Send(payload)
+	HTTP.WaitForResponse()
+
+	json_data := HTTP.ResponseText
+	IP_limit := HTTP.GetResponseHeader("X-Rate-Limit-Ip")
+	IP_limit_status := HTTP.GetResponseHeader("X-Rate-Limit-Ip-State")
+	status := HTTP.Status()
+	If (status = 429)
+		retry_after := HTTP.GetResponseHeader("Retry-After")
+
+	OutputDebug, % json_data
+	OutputDebug, % IP_limit
+	OutputDebug, % IP_limit_status
+	OutputDebug, % retry_after
+	OutputDebug, % status
+
+
+	HTTP := "" ;close out HTTP
 }
 
 Stash_Calibrate(cHWND)
