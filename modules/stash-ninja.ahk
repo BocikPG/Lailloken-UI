@@ -3,8 +3,8 @@
 	local
 	global vars, settings, db, Json
 	static json_data, exceptions := {"currency": ["reality fragment", "devouring fragment", "decaying fragment", "blazing fragment", "synthesising fragment", "cosmic fragment", "awakening fragment"
-	, "blessing of chayula", "blessing of xoph", "blessing of uul-netol", "blessing of tul", "blessing of esh", "ritual vessel", "oil extractor"], "fragments": ["simulacrum", "simulacrum splinter"]}
-	, dLimits := [[0.5, "", 3], [0.25, 0.5, 3], [10, 30, 1], [1, 10, 1], ["", 1, 1]], essences := ["whispering", "muttering", "weeping", "wailing", "screaming", "shrieking", "deafening"]
+		, "blessing of chayula", "blessing of xoph", "blessing of uul-netol", "blessing of tul", "blessing of esh", "ritual vessel", "oil extractor"], "fragments": ["simulacrum", "simulacrum splinter"]}
+		, dLimits := [[0.5, "", 3], [0.25, 0.5, 3], [10, 30, 1], [1, 10, 1], ["", 1, 1]], essences := ["whispering", "muttering", "weeping", "wailing", "screaming", "shrieking", "deafening"]
 
 	;//TODO: initialise all ;vars.stash.true_price["truepricestatus_" (foreach)vars.stash.active]
 
@@ -42,16 +42,16 @@
 	{
 		If !oCheck
 			vars.stash := {"currency": {}, "tabs": {"delve": [20, Round(height * (1/80))], "essences": [24, 4], "fragments": [24, Round(height * (1/72))], "scarabs": [30, 2]
-			, "breach": [20, Round(height * (1/80))], "currency1": [24, Round(height * (1/90))], "currency2": [24, Round(height * (1/90))], "blight": [24, Round(height * (1/60))]
-			, "delirium": [20, Round(height * (1/72))], "ultimatum": [20, Round(height * (1/90))]}
-			, "width": width, "buttons": Round(height * (1/36)), "exalt": StrSplit(LLK_IniRead("data\global\[stash-ninja] prices.ini", "currency", "exalted orb", "0"), ",", A_Space, 3).1
-			, "divine": StrSplit(LLK_IniRead("data\global\[stash-ninja] prices.ini", "currency", "divine orb", "0"), ",", A_Space, 3).1}
-			, json_data := Json.Load(LLK_FileRead("data\global\[stash-ninja] tabs.json"))
+					, "breach": [20, Round(height * (1/80))], "currency1": [24, Round(height * (1/90))], "currency2": [24, Round(height * (1/90))], "blight": [24, Round(height * (1/60))]
+					, "delirium": [20, Round(height * (1/72))], "ultimatum": [20, Round(height * (1/90))]}
+					, "width": width, "buttons": Round(height * (1/36)), "exalt": StrSplit(LLK_IniRead("data\global\[stash-ninja] prices.ini", "currency", "exalted orb", "0"), ",", A_Space, 3).1
+					, "divine": StrSplit(LLK_IniRead("data\global\[stash-ninja] prices.ini", "currency", "divine orb", "0"), ",", A_Space, 3).1}
+				, json_data := Json.Load(LLK_FileRead("data\global\[stash-ninja] tabs.json"))
 		For tab, array in json_data
 		{
 			If !oCheck
 				iTab := ini[tab], settings.stash[tab] := {"gap": !Blank(check := iTab.gap) ? check : vars.stash.tabs[tab].2, "limits0": [], "limits": [], "profile": Blank(check1 := backup[tab].profile) ? 1 : check1, "margin": !Blank(check2 := iTab.margin) ? check2 : 0
-				, "in_folder": !Blank(check3 := iTab["tab is in folder"]) ? check3 : 0}, vars.stash[tab] := {}
+					, "in_folder": !Blank(check3 := iTab["tab is in folder"]) ? check3 : 0}, vars.stash[tab] := {}
 			Loop 5
 			{
 				If !oCheck
@@ -85,7 +85,7 @@
 		gap := settings.stash[tab].gap, vars.stash[tab].box := dBox := vars.client.h//tabs[tab].1, in_folder := settings.stash[tab].in_folder
 		For index, array1 in array
 		{
-			tradename = 
+			tradename =
 			If (tab = "scarabs" && SubStr(array1.3, 1, 3) = "of ")
 				name := name0 " " array1.3
 			Else If (tab = "essences")
@@ -97,10 +97,10 @@
 			Else If (tab = "ultimatum")
 				name := array1.3 " catalyst"
 			Else name0 := name := array1.3 (tab = "delve" && !InStr(array1.3, "resonator") ? " fossil" : "")
-			
-			If (tab = "scarabs" && !Instr(name, "tab_")) 
+
+			If (tab = "scarabs" && !Instr(name, "tab_"))
 				tradename := StrReplace(name, " ", "-")
-			
+
 			exception1 := LLK_PatternMatch(name, "", ["potent", "powerful", "prime"]) ? 1 : 0, exception2 := LLK_PatternMatch(name, "", ["prime"]) ? 1 : 0
 			xCoord := array1.1 ? Floor((array1.1 / 1440) * vars.client.h) : xCoord + (exception2 ? vars.client.h * (1/12) : dBox) + gap * (tab = "scarabs" && index > 105 ? 2 : 1)
 			yCoord := array1.2 ? Floor(((array1.2 + (in_folder ? 47 : 0)) / 1440) * vars.client.h) : yCoord
@@ -108,7 +108,7 @@
 			prices := IsObject(vars.stash[tab][name].prices) ? vars.stash[tab][name].prices.Clone() : StrSplit(!Blank(check := ini[tab0][name]) ? check : "0, 0, 0", ",", A_Space, 3)
 			trueprices := IsObject(vars.stash[tab][name].trueprices) ? vars.stash[tab][name].trueprices.Clone() : StrSplit(!Blank(check := ini[tab0][name]) ? check : "0, 0, 0, 0, 0", ",", A_Space, 5)
 			trend := IsObject(vars.stash[tab][name].trend) ? vars.stash[tab][name].trend.Clone() : StrSplit(!Blank(check := ini[tab0][name "_trend"]) ? check : "0, 0, 0, 0, 0, 0, 0", ",", A_Space)
-			vars.stash[tab][name] := {"coords": [xCoord, yCoord], "prices": prices, "trend": trend, "trueprices": trueprices, "tradename": !Blank(tradename) ?  tradename : array1.4 }
+			vars.stash[tab][name] := {"coords": [xCoord, yCoord], "prices": prices, "trend": trend, "trueprices": trueprices, "tradename": !Blank(tradename) ? tradename : array1.4 }
 		}
 	}
 	vars.stash.currency1["chaos orb"].prices := [1, 1/vars.stash.exalt, 1/vars.stash.divine]
@@ -185,7 +185,7 @@ Stash_(mode, test := 0)
 				price := Round(val.prices[lType], (val.prices[lType] > 1000) ? 0 : (val.prices[lType] > 100) ? 1 : 2)
 				exception1 := LLK_PatternMatch(item, "", ["potent", "powerful", "prime"]) ? 1 : 0, exception2 := LLK_PatternMatch(item, "", ["powerful", "prime"]) ? 1 : 0
 				Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Right c" colors.1 " x" val.coords.1 " y" val.coords.2 + (exception1 ? vars.client.h * (1/12) : dBox) - settings.stash.fHeight2
-				. " w" (exception2 ? vars.client.h * (1/12) : dBox) . (hidden ? " Hidden" : ""), % (test ? A_Index : (lType = 4) ? val.trend[val.trend.MaxIndex()] : price) " "
+					. " w" (exception2 ? vars.client.h * (1/12) : dBox) . (hidden ? " Hidden" : ""), % (test ? A_Index : (lType = 4) ? val.trend[val.trend.MaxIndex()] : price) " "
 				Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" colors.2 . (hidden ? " Hidden" : ""), 0
 				vars.hwnd.stash[item] := hwnd
 				If (vars.stash.hover = item)
@@ -225,13 +225,12 @@ Stash_(mode, test := 0)
 			Gui, %GUI_name%: Add, Progress, % "BackgroundBlack Disabled cBlack xp yp wp hp Border", 100
 			added += 1
 		}
-	
+
 	Gui, %GUI_name%: Font, % "bold s" settings.stash.fSize
 	Gui, %GUI_name%: Add, Text, % "Section x" width/2 - 300 " y" vars.client.h * 0.05 " Center BackgroundTrans HWNDhwnd Border w" 100 " h" 25 . color1, % vars.stash.true_price["truepricestatus_" vars.stash.active]
 	vars.hwnd.stash_picker["trueprice_" vars.stash.active] := hwnd
 	ControlGetPos, xBox, yBox, wBox, hBox,, ahk_id %hwnd%
 	Gui, %GUI_name%: Add, Progress, % " Disabled cBlack xp yp wp hp Border BackgroundBlack c" color2, 100
-
 
 	Gui, %GUI_name%: Show, % "NA x" vars.client.x " y" vars.client.y
 	LLK_Overlay(hwnd_stash, "show",, GUI_name), LLK_Overlay(hwnd_old, "destroy")
@@ -241,6 +240,34 @@ Stash_(mode, test := 0)
 	Return 1
 }
 
+Get_Await_Time(IP_limit, IP_limit_status)
+{
+	max_limits := StrSplit(IP_limit, ",")
+	curr_limits := StrSplit(IP_limit_status, ",")
+	
+	time := 300000
+	Loop, 3
+	{
+		values := StrSplit(max_limits[4 - A_Index], ":")
+
+		a := curr_limits[4 - A_Index]
+		Loop, parse, a, : 
+		{
+			if(A_LoopField >= values[1] * 0.7)
+			{
+				;OutputDebug, chilled
+				time := values[2] / 5 * 1000 + 2000 ; divide by 5????
+				Return time
+			}
+			Else
+				time := values[2] / values[1] * 1000
+			Break
+		}
+	}
+	;OutputDebug, % time " to sleep"
+	Return time
+}
+
 Stash_FetchRealPrices(cHWND := "")
 {
 	local
@@ -248,37 +275,75 @@ Stash_FetchRealPrices(cHWND := "")
 
 	vars.stash.true_price["truepricestatus_" vars.stash.active] := "working!"
 
-	item := "chrome"
-
-	payload := "{""query"":{""status"":{""option"":""online""},""have"":[""divine""],""want"":[""" item """]},""sort"":{""have"":""asc""},""engine"":""new""}"
-
-	OutputDebug, % payload
-	OutputDebug, % settings.stash.league
-
+	;//TODO: put that inside thread
+	
 	HTTP := ComObjCreate("WinHttp.WinHttpRequest.5.1")
 	HTTP.Open("POST", "https://www.pathofexile.com/api/trade/exchange/" settings.stash.league)
 	HTTP.SetRequestHeader("User-Agent", "OPR/106.0.0.0")
 	HTTP.SetRequestHeader("Content-Type", "application/json")
-
+	
 	IfWinExist, Fiddler
-		HTTP.SetProxy(2,"localhost:8888")
+	HTTP.SetProxy(2,"localhost:8888")
+	
+	For index, item in vars.stash[vars.stash.active]
+	{
+		if(Blank(item.tradename))
+			Continue
 
-	HTTP.Send(payload)
-	HTTP.WaitForResponse()
+		item := item.tradename
 
-	json_data := HTTP.ResponseText
-	IP_limit := HTTP.GetResponseHeader("X-Rate-Limit-Ip")
-	IP_limit_status := HTTP.GetResponseHeader("X-Rate-Limit-Ip-State")
-	status := HTTP.Status()
-	If (status = 429)
-		retry_after := HTTP.GetResponseHeader("Retry-After")
+		OutputDebug, % item
 
-	OutputDebug, % json_data
-	OutputDebug, % IP_limit
-	OutputDebug, % IP_limit_status
-	OutputDebug, % retry_after
-	OutputDebug, % status
+		payload := "{""query"":{""status"":{""option"":""online""},""have"":[""divine""],""want"":[""" item """]},""sort"":{""have"":""asc""},""engine"":""new""}"
 
+		Loop, 2
+		{
+			HTTP.Send(payload)
+			HTTP.WaitForResponse()
+	
+			json_data := HTTP.ResponseText
+			IP_limit := HTTP.GetResponseHeader("X-Rate-Limit-Ip")
+			IP_limit_status := HTTP.GetResponseHeader("X-Rate-Limit-Ip-State")
+			status := HTTP.Status()
+
+			If (status = 429)
+			{
+				retry_after := HTTP.GetResponseHeader("Retry-After")
+				;OutputDebug, banned
+				Sleep, (retry_after + 2) * 1000
+			}
+
+			If (status == 200 && !Blank(json_data) )
+				Break
+
+			Sleep, Get_Await_Time(IP_limit, IP_limit_status)
+		}
+
+		offerCount := 0
+		divholder := 0
+		offers := []
+
+		new_json_data := StrReplace(json_data, """amount"":", "¢")
+		Loop, parse, new_json_data, ¢ ; Parse the string based on the cent symbol.
+		{
+			if(A_Index = 1)
+				Continue
+
+			number := StrSplit( A_LoopField , ",", , 2)
+			num := % number[1]
+
+			if(Mod(A_Index, 2) == 1)
+				divholder := num
+			Else
+			{
+				offerCount++
+				offers.Push(num / divholder)
+			}
+		}
+		;//TODO: save data to ini
+
+		Sleep, Get_Await_Time(IP_limit, IP_limit_status)
+	}
 
 	HTTP := "" ;close out HTTP
 }
@@ -400,8 +465,8 @@ Stash_PriceFetch(tab)
 					IniWrite, % """" trend """", data\global\[stash-ninja] prices.ini, % tab, % name "_trend"
 			}
 			Else ini_dump .= "`n" name "=""" price """", ini_dump .= !Blank(trend) ? "`n" name "_trend=""" trend """" : ""
-			If (check := LLK_HasKey(vars.stash, name,,,, 1))
-				vars.stash[check][name].prices := StrSplit(price, ",", A_Space, 3), vars.stash[check][name].trend := Blank(trend) ? [0, 0, 0, 0, 0, 0, 0] : StrSplit(trend, ",", A_Space, 7)
+				If (check := LLK_HasKey(vars.stash, name,,,, 1))
+					vars.stash[check][name].prices := StrSplit(price, ",", A_Space, 3), vars.stash[check][name].trend := Blank(trend) ? [0, 0, 0, 0, 0, 0, 0] : StrSplit(trend, ",", A_Space, 7)
 		}
 		If (A_Index = 1)
 		{
@@ -434,7 +499,7 @@ Stash_PriceHistory(gui_name, x, y, h, wSlice, data, ByRef min_max)
 		If (percent > 0)
 			min_max.1 := (percent > min_max.1) ? percent : min_max.1
 		Else min_max.3 := (percent < min_max.3) ? percent : min_max.3
-		min_max := [Round(min_max.1, 1), Round(percent, 1), Round(min_max.3, 1)]
+			min_max := [Round(min_max.1, 1), Round(percent, 1), Round(min_max.3, 1)]
 	}
 	min_max := [min_max.1 "%", min_max.2 "%", min_max.3 "%"]
 	Return xControl + wControl
@@ -493,41 +558,41 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 				vars.hwnd.stash_picker.amount := hwnd, vars.hwnd.stash_picker.ok := hwnd1
 			}
 			Else Gui, %GUI_name%: Add, Text, % "ys x+-1 BackgroundTrans HWNDhwnd Border Center w" wColumn . color, % amount (!stack && (check := Mod(available0, amount)) ? " (+" check ")" : "")
-			If stack || (available != available0)
-				Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Disabled Border BackgroundBlack c" (stack ? "603030" : "303060"), 100
+				If stack || (available != available0)
+					Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Disabled Border BackgroundBlack c" (stack ? "603030" : "303060"), 100
 		}
 		ControlGetPos, xColumn, yColumn, wColumn, hColumn,, ahk_id %hwnd%
 		Gui, %GUI_name%: Add, Progress, % "x0 y+-1 Disabled Background606060 w" xColumn + wColumn " h" settings.stash.fWidth//2, 0
 	}
 	Else LLK_PanelDimensions([Round(val.prices.1, 2), Round(val.prices.2, 2), Round(val.prices.3, 2), ".`n."], settings.stash.fSize, wMarket, hMarket)
 
-	For index, cType in ["chaos", "exalt", "divine"]
-	{
-		If (cType = "exalt") && !exalt || !trend && (available * val.prices[index] * (1 + margin) < 0.5) || price11 && (price11 < settings.stash.min_trade) || !trend && (item = cType " orb" || item = cType "ed orb")
-			Continue
-		hLine := hMarket, style := " Section HWNDhwnd BackgroundTrans h" hLine - (!trend ? 2 : 0) " w-1" (!trend ? " Border" : ""), lines += 1, price := ""
-		Gui, %GUI_name%: Add, Pic, % (index != 1 || !trend ? "xs " (!trend ? "y+-1" : "") : "x+" settings.stash.fWidth " yp+" settings.stash.fWidth + (!trend ? settings.stash.fHeight : 0)) . style, % "img\GUI\" cType ".png"
-		If (lines = 1)
-			ControlGetPos, xAnchor2, yAnchor2,,,, ahk_id %hwnd%
-		Gui, %GUI_name%: Add, Text, % (!trend ? "Border x+-1 Center " : "") "ys hp BackgroundTrans HWNDhwnd w" wMarket . (!trend && available > 1 ? "" : " 0x200"), % (!trend && available > 1 ? Round(available * val.prices[index], 2) "`n@" : "") . Round(val.prices[index], 2)
-		ControlGetPos, xLast, yLast, wLast, hLast,, ahk_id %hwnd%
-		If !trend
-			Gui, %GUI_name%: Add, Progress, % "ys x+-1 Disabled Background606060 w" settings.stash.fWidth//2 " hp", 0
-		wMax := (wLast > wMax) ? wLast : wMax
-
-		If !trend
+		For index, cType in ["chaos", "exalt", "divine"]
 		{
-			For iBulk, vBulk in bulk_sizes
+			If (cType = "exalt") && !exalt || !trend && (available * val.prices[index] * (1 + margin) < 0.5) || price11 && (price11 < settings.stash.min_trade) || !trend && (item = cType " orb" || item = cType "ed orb")
+				Continue
+			hLine := hMarket, style := " Section HWNDhwnd BackgroundTrans h" hLine - (!trend ? 2 : 0) " w-1" (!trend ? " Border" : ""), lines += 1, price := ""
+			Gui, %GUI_name%: Add, Pic, % (index != 1 || !trend ? "xs " (!trend ? "y+-1" : "") : "x+" settings.stash.fWidth " yp+" settings.stash.fWidth + (!trend ? settings.stash.fHeight : 0)) . style, % "img\GUI\" cType ".png"
+			If (lines = 1)
+				ControlGetPos, xAnchor2, yAnchor2,,,, ahk_id %hwnd%
+			Gui, %GUI_name%: Add, Text, % (!trend ? "Border x+-1 Center " : "") "ys hp BackgroundTrans HWNDhwnd w" wMarket . (!trend && available > 1 ? "" : " 0x200"), % (!trend && available > 1 ? Round(available * val.prices[index], 2) "`n@" : "") . Round(val.prices[index], 2)
+			ControlGetPos, xLast, yLast, wLast, hLast,, ahk_id %hwnd%
+			If !trend
+				Gui, %GUI_name%: Add, Progress, % "ys x+-1 Disabled Background606060 w" settings.stash.fWidth//2 " hp", 0
+			wMax := (wLast > wMax) ? wLast : wMax
+
+			If !trend
 			{
-				;//TODO: tu podmienić i guess
-				price0 := vBulk * val.prices[index], price := Round(price0 * (1 + margin)), price%index%%iBulk% := price, inventory_check := (price / 20 > 60) ? 0 : 1
-				Gui, %GUI_name%: Add, Text, % "ys x+-1 BackgroundTrans HWNDhwnd Border Center w" wColumn . (price >= 1 && inventory_check ? " gStash_PricePicker" : "") . (index = 1 && price < settings.stash.min_trade ? " cRed" : !inventory_check ? " cGray" : "")
-				, % (price >= 1) ? price "`n(" Round((price/price0) * 100 - 100, 1) "%)" : "`n"
-				vars.hwnd.stash_picker["pickprice_" (price = vBulk || vBulk = 1 ? price : price "_" vBulk) " " currencies_verbose[index]] := hwnd
-				ControlGetPos, xBox, yBox, wBox, hBox,, ahk_id %hwnd%
+				For iBulk, vBulk in bulk_sizes
+				{
+					;//TODO: tu podmienić i guess
+					price0 := vBulk * val.prices[index], price := Round(price0 * (1 + margin)), price%index%%iBulk% := price, inventory_check := (price / 20 > 60) ? 0 : 1
+					Gui, %GUI_name%: Add, Text, % "ys x+-1 BackgroundTrans HWNDhwnd Border Center w" wColumn . (price >= 1 && inventory_check ? " gStash_PricePicker" : "") . (index = 1 && price < settings.stash.min_trade ? " cRed" : !inventory_check ? " cGray" : "")
+						, % (price >= 1) ? price "`n(" Round((price/price0) * 100 - 100, 1) "%)" : "`n"
+					vars.hwnd.stash_picker["pickprice_" (price = vBulk || vBulk = 1 ? price : price "_" vBulk) " " currencies_verbose[index]] := hwnd
+					ControlGetPos, xBox, yBox, wBox, hBox,, ahk_id %hwnd%
+				}
 			}
 		}
-	}
 
 	If trend
 	{
@@ -547,7 +612,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 		}
 		Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border x" xAnchor " y" yAnchor " w" xLast + wMax - xAnchor + settings.stash.fWidth * 1.5 " h" yLast + hLast - yAnchor + settings.stash.fWidth
 		Gui, %GUI_name%: Add, Progress, % "BackgroundBlack Disabled xp yp wp hp", 0
-		Gui, %GUI_name%: Font, % "s" settings.stash.fSize2	
+		Gui, %GUI_name%: Font, % "s" settings.stash.fSize2
 	}
 	Else
 	{
@@ -621,7 +686,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1)
 		}
 		Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border x" xAnchor " y" yAnchor " w" xLast + wMax - xAnchor + settings.stash.fWidth*1.5 " h" yLast + hLast - yAnchor + settings.stash.fWidth, % " "
 		Gui, %GUI_name%: Add, Progress, % "BackgroundBlack Disabled xp yp wp hp", 0
-		Gui, %GUI_name%: Font, % "s" settings.stash.fSize2	
+		Gui, %GUI_name%: Font, % "s" settings.stash.fSize2
 	}
 	Else
 	{
@@ -704,9 +769,9 @@ Stash_PricePicker(cHWND := "")
 		Else available := SubStr(Clipboard, InStr(Clipboard, LangTrans("items_stack")) + StrLen(LangTrans("items_stack")) + 1),	max_stack := SubStr(available, InStr(available, "/") + 1)
 			, max_stack := SubStr(max_stack, 1, InStr(max_stack, "`r") - 1), available := SubStr(available, 1, InStr(available, "/") - 1)
 
-	For key, val in {"available": available, "max_stack": max_stack}
-		Loop, Parse, val
-			loopfield_copy := IsNumber(A_LoopField) ? A_LoopField : "", %key% := (A_Index = 1) ? loopfield_copy : %key% . loopfield_copy
+			For key, val in {"available": available, "max_stack": max_stack}
+				Loop, Parse, val
+					loopfield_copy := IsNumber(A_LoopField) ? A_LoopField : "", %key% := (A_Index = 1) ? loopfield_copy : %key% . loopfield_copy
 	vars.stash.available := available, vars.stash.max_stack := max_stack
 	Gui, %GUI_name%: New, % "-Caption -DPIScale +LastFound +AlwaysOnTop +ToolWindow +E0x02000000 +E0x00080000 HWNDhwnd_stash"
 	Gui, %GUI_name%: Font, % "s" settings.stash.fSize2 " cWhite", % vars.system.font
