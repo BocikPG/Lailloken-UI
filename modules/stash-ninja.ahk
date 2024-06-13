@@ -256,7 +256,7 @@ Get_Await_Time(IP_limit, IP_limit_status)
 			if(A_LoopField >= values[1] * 0.7)
 			{
 				;OutputDebug, chilled
-				time := values[2] / 5 * 1000 + 2000 ; divide by 5????
+				time := values[2] / 5 * 1000 + 2000 
 				Return time
 			}
 			Else
@@ -286,12 +286,13 @@ Stash_FetchRealPrices(cHWND := "")
 {
 	local
 	global vars, settings, truePriceIndexer, retryIndexer
+	static places := [5,10,15,20,25,40]
 
 	if(vars.stash.true_price.inProgress = 1)
 		Return
 
-	vars.stash.true_price["truepricestatus_" vars.stash.active] := "working!"
 	vars.stash.true_price.activeStash := vars.stash.active
+	vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "working!"
 	vars.stash.true_price.inProgress := 1
 
 	truePriceIndexer := 1
@@ -313,6 +314,7 @@ Stash_FetchRealPrices(cHWND := "")
 		if(Blank(item))
 		{
 			vars.stash.true_price.inProgress := 0
+			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "ended"
 			Return
 		}
 		if(Blank(item.tradename))
@@ -387,7 +389,27 @@ Stash_FetchRealPrices(cHWND := "")
 				offers.Push(num / divholder)
 			}
 		}
-		;//TODO: save data to ini
+
+		j := 2
+		table := """"  ;"0, 0, 0, 0, 0"
+		Loop 5
+		{
+			i := A_Index
+			mean := 0
+			a := places[i+1] - places[i]
+			Loop, % a
+			{
+				mean += offers[j]
+				j++
+			}
+			mean /= places[i+1] - places[i]
+			table .= mean ", "
+		}
+		final := SubStr(table, 1, -2)
+		final .= """"
+		OutputDebug, % final
+
+		IniWrite, % final, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, % item
 
 		JustGoToNext:
 		OutputDebug, % vars.stash[vars.stash.true_price.activeStash].Count()
@@ -399,7 +421,12 @@ Stash_FetchRealPrices(cHWND := "")
 			SetTimer, ForLoopWithTimer, % time
 		}
 		Else
+		{
+			IniWrite, % A_Now, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, timestamp
+
+			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "ended"
 			vars.stash.true_price.inProgress := 0
+		}
 	Return
 
 }
