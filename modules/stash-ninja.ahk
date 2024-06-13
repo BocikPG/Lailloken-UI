@@ -268,27 +268,59 @@ Get_Await_Time(IP_limit, IP_limit_status)
 	Return time
 }
 
+ItemAt(array, index)
+{
+	If (Blank(array) || Blank(index))
+		Return
+	i := 1
+	For key, val in array
+	{
+		if(i = index)
+			Return val
+		i++
+	}
+	Return
+}
+
 Stash_FetchRealPrices(cHWND := "")
 {
 	local
-	global vars, settings
+	global vars, settings, truePriceIndexer, retryIndexer
+
+	if(vars.stash.true_price.inProgress = 1)
+		Return
 
 	vars.stash.true_price["truepricestatus_" vars.stash.active] := "working!"
+	vars.stash.true_price.activeStash := vars.stash.active
+	vars.stash.true_price.inProgress := 1
 
-	;//TODO: put that inside thread
+	truePriceIndexer := 1
 	
-	HTTP := ComObjCreate("WinHttp.WinHttpRequest.5.1")
-	HTTP.Open("POST", "https://www.pathofexile.com/api/trade/exchange/" settings.stash.league)
-	HTTP.SetRequestHeader("User-Agent", "OPR/106.0.0.0")
-	HTTP.SetRequestHeader("Content-Type", "application/json")
+	Goto, ForLoopWithTimer
 	
-	IfWinExist, Fiddler
-	HTTP.SetProxy(2,"localhost:8888")
-	
-	For index, item in vars.stash[vars.stash.active]
-	{
+	ForLoopWithTimer:
+
+		HTTP := ComObjCreate("WinHttp.WinHttpRequest.5.1")
+		HTTP.Open("POST", "https://www.pathofexile.com/api/trade/exchange/" settings.stash.league)
+		HTTP.SetRequestHeader("User-Agent", "OPR/106.0.0.0")
+		HTTP.SetRequestHeader("Content-Type", "application/json")
+
+		IfWinExist, Fiddler
+		HTTP.SetProxy(2,"localhost:8888")
+
+
+		item := ItemAt(vars.stash[vars.stash.true_price.activeStash], truePriceIndexer)
+		if(Blank(item))
+		{
+			vars.stash.true_price.inProgress := 0
+			Return
+		}
 		if(Blank(item.tradename))
-			Continue
+		{
+			truePriceIndexer++
+			Goto, ForLoopWithTimer
+		}
+
 
 		item := item.tradename
 
@@ -296,8 +328,9 @@ Stash_FetchRealPrices(cHWND := "")
 
 		payload := "{""query"":{""status"":{""option"":""online""},""have"":[""divine""],""want"":[""" item """]},""sort"":{""have"":""asc""},""engine"":""new""}"
 
-		Loop, 2
-		{
+		retryIndexer := 1
+
+		RetryLoop:
 			HTTP.Send(payload)
 			HTTP.WaitForResponse()
 	
@@ -309,15 +342,29 @@ Stash_FetchRealPrices(cHWND := "")
 			If (status = 429)
 			{
 				retry_after := HTTP.GetResponseHeader("Retry-After")
-				;OutputDebug, banned
-				Sleep, (retry_after + 2) * 1000
+				OutputDebug, banned
+				atime = -1 * (retry_after + 2) * 1000
+				SetTimer, RetryLoop, % atime
+				Return
 			}
 
-			If (status == 200 && !Blank(json_data) )
-				Break
+			If (status != 200 || Blank(json_data) )
+			{
+				if(retryIndexer <= 3)
+				{
+					atime = -1 * Get_Await_Time(IP_limit, IP_limit_status)
+					SetTimer, RetryLoop, % atime
+					retryIndexer++
+					Return
+				}
+				Else
+				{
+					OutputDebug, skipped
+					Goto, JustGoToNext
+				}
+			}
 
-			Sleep, Get_Await_Time(IP_limit, IP_limit_status)
-		}
+		
 
 		offerCount := 0
 		divholder := 0
@@ -342,10 +389,19 @@ Stash_FetchRealPrices(cHWND := "")
 		}
 		;//TODO: save data to ini
 
-		Sleep, Get_Await_Time(IP_limit, IP_limit_status)
-	}
+		JustGoToNext:
+		OutputDebug, % vars.stash[vars.stash.true_price.activeStash].Count()
+		HTTP := "" ;close out HTTP
+		if(truePriceIndexer + 1 <= vars.stash[vars.stash.true_price.activeStash].Count())
+		{
+			truePriceIndexer++
+			time := -1 * Get_Await_Time(IP_limit, IP_limit_status)
+			SetTimer, ForLoopWithTimer, % time
+		}
+		Else
+			vars.stash.true_price.inProgress := 0
+	Return
 
-	HTTP := "" ;close out HTTP
 }
 
 Stash_Calibrate(cHWND)
@@ -403,7 +459,7 @@ Stash_Hotkeys()
 		hotkey := StrReplace(hotkey, A_LoopField)
 
 	If IsNumber(hotkey) && hotkey = 6
-		Stash_FetchRealPrices(), Stash_("refresh")
+		Stash_FetchRealPrices(), Stash_("refresh"), in_progress := 0
 	If IsNumber(hotkey) && !Blank(settings.stash[tab].limits[hotkey].3) && (hotkey != settings.stash[tab].profile)
 		settings.stash[tab].profile := hotkey, Stash_("refresh")
 	Else If InStr(hotkey, "Button") && vars.stash.hover
