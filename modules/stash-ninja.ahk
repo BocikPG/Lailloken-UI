@@ -72,14 +72,20 @@
 		}
 	}
 
-	If !oCheck
+	If !oCheck ;set timestamp and league in vars.stash[tab]
 	{
 		ini := IniBatchRead("data\global\[stash-ninja] prices.ini",, "65001")
 		For tab in json_data
 			If !InStr("currency2, breach", tab)
 				tab := InStr(tab, "currency") ? "currency" : tab, vars.stash[tab].timestamp := ini[tab].timestamp, vars.stash[tab].league := ini[tab].league
+		
+		iniTrue := IniBatchRead("data\global\[stash-ninja] trueprices.ini",, "65001")
+		For tab in json_data
+			vars.stash[tab].trueLeague := iniTrue[tab].league
+	
 	}
 	tabs := vars.stash.tabs
+	sometimeago = 20240610101010
 	For tab, array in json_data
 	{
 		gap := settings.stash[tab].gap, vars.stash[tab].box := dBox := vars.client.h//tabs[tab].1, in_folder := settings.stash[tab].in_folder
@@ -100,15 +106,17 @@
 
 			If (tab = "scarabs" && !Instr(name, "tab_"))
 				tradename := StrReplace(name, " ", "-")
+			tradename := !Blank(tradename) ? tradename : array1.4
 
 			exception1 := LLK_PatternMatch(name, "", ["potent", "powerful", "prime"]) ? 1 : 0, exception2 := LLK_PatternMatch(name, "", ["prime"]) ? 1 : 0
 			xCoord := array1.1 ? Floor((array1.1 / 1440) * vars.client.h) : xCoord + (exception2 ? vars.client.h * (1/12) : dBox) + gap * (tab = "scarabs" && index > 105 ? 2 : 1)
 			yCoord := array1.2 ? Floor(((array1.2 + (in_folder ? 47 : 0)) / 1440) * vars.client.h) : yCoord
 			tab0 := (check := LLK_HasVal(exceptions, name,,,, 1)) ? check : (tab = "breach") ? "fragments" : InStr(tab, "currency") || (tab = "ultimatum") ? "currency" : tab
 			prices := IsObject(vars.stash[tab][name].prices) ? vars.stash[tab][name].prices.Clone() : StrSplit(!Blank(check := ini[tab0][name]) ? check : "0, 0, 0", ",", A_Space, 3)
-			trueprices := IsObject(vars.stash[tab][name].trueprices) ? vars.stash[tab][name].trueprices.Clone() : StrSplit(!Blank(check := ini[tab0][name]) ? check : "0, 0, 0, 0, 0", ",", A_Space, 5)
+			trueTimestamp := IsObject(vars.stash[tab][name].trueTimestamp) ? vars.stash[tab][name].trueTimestamp.Clone() : !Blank(check := iniTrue[tab][name "_timestamp"] ) ? check : sometimeago
+			trueprices := IsObject(vars.stash[tab][name].trueprices) ? vars.stash[tab][name].trueprices.Clone() : StrSplit(!Blank(check := iniTrue[tab][name]) ? check : "0, 0, 0, 0, 0", ",", A_Space, 5)
 			trend := IsObject(vars.stash[tab][name].trend) ? vars.stash[tab][name].trend.Clone() : StrSplit(!Blank(check := ini[tab0][name "_trend"]) ? check : "0, 0, 0, 0, 0, 0, 0", ",", A_Space)
-			vars.stash[tab][name] := {"coords": [xCoord, yCoord], "prices": prices, "trend": trend, "trueprices": trueprices, "tradename": !Blank(tradename) ? tradename : array1.4 }
+			vars.stash[tab][name] := {"coords": [xCoord, yCoord], "prices": prices, "trend": trend, "trueprices": trueprices, "trueTimestamp": trueTimestamp, "tradename": tradename }
 		}
 	}
 	vars.stash.currency1["chaos orb"].prices := [1, 1/vars.stash.exalt, 1/vars.stash.divine]
@@ -169,7 +177,7 @@ Stash_(mode, test := 0)
 	count := added := 0, width := Floor(vars.client.h * (37/60)), height := vars.client.h, currencies := ["chaos", "exalt", "divine", "percent"], vars.stash.wait := 1, vars.stash.enter := 0
 
 	For item, val in vars.stash[tab] ; add gui bar for each item in stash
-		If IsObject(val) && (!Blank(lType) && LLK_IsBetween((lType = 4) ? val.trend[val.trend.MaxIndex()] : Round(val.prices[lType], 2), lBot, lTop) || test || InStr(item, "tab_")) ;|| (item = vars.stash.hover)
+		If IsObject(val) && (!Blank(lType) && LLK_IsBetween((lType = 4) ? val.trend[val.trend.MaxIndex()] : Round(val.prices[lType], 2), lBot, lTop) || test || InStr(item, "tab_")) ;|| (item = vars.stash.hover) | what is (lType = 4) ????
 		{
 			colors := settings.stash.colors.Clone(), hidden := (vars.stash.hover && item != vars.stash.hover && !InStr(vars.stash.hover, "tab_")) ? 1 : 0
 			If InStr(item, "tab_")
@@ -182,6 +190,29 @@ Stash_(mode, test := 0)
 			}
 			Else
 			{
+				if(lType = 3) ;if divines
+				{
+					repairLater := val.prices[lType]
+					now := % A_Now
+					EnvSub, now, val.trueTimestamp, Hours
+					if(now <= 4 && !Blank(val.trueTimestamp) && !Blank(now)) ; if data if fresh (maybe put that in settings)
+					{
+						margin := settings.stash[tab].margin := LLK_HasVal(margins, settings.stash[tab].margin) ? settings.stash[tab].margin : margins.1, margin := margin ? Round(margin / 100, 2) : margin
+						i := 1
+						a := % settings.stash.margins
+						Loop, Parse, a , `, , %A_Space%
+						{
+							if(margin = A_LoopField)
+								Break
+							i++
+						}
+						if(i>=6)
+							i = 1
+						val.prices[lType] := val.trueprices[i]
+					}
+	
+				}
+					
 				price := Round(val.prices[lType], (val.prices[lType] > 1000) ? 0 : (val.prices[lType] > 100) ? 1 : 2)
 				exception1 := LLK_PatternMatch(item, "", ["potent", "powerful", "prime"]) ? 1 : 0, exception2 := LLK_PatternMatch(item, "", ["powerful", "prime"]) ? 1 : 0
 				Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Right c" colors.1 " x" val.coords.1 " y" val.coords.2 + (exception1 ? vars.client.h * (1/12) : dBox) - settings.stash.fHeight2
@@ -192,6 +223,10 @@ Stash_(mode, test := 0)
 				{
 					ControlGetPos, xAnchor, yAnchor, wAnchor, hAnchor,, ahk_id %hwnd%
 					xAnchor += wAnchor, Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val)
+				}
+				if(lType = 3)
+				{
+					val.prices[lType] := repairLater
 				}
 			}
 		}
@@ -276,7 +311,11 @@ ItemAt(array, index)
 	For key, val in array
 	{
 		if(i = index)
+		{
+			val.itemname := key
 			Return val
+		}
+			
 		i++
 	}
 	Return
@@ -296,7 +335,10 @@ Stash_FetchRealPrices(cHWND := "")
 	vars.stash.true_price.inProgress := 1
 
 	truePriceIndexer := 1
-	
+
+	IniWrite, % settings.stash.league , data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, league
+	vars.stash[vars.stash.true_price.activeStash].trueLeague := settings.stash.league
+
 	Goto, ForLoopWithTimer
 	
 	ForLoopWithTimer:
@@ -323,12 +365,11 @@ Stash_FetchRealPrices(cHWND := "")
 			Goto, ForLoopWithTimer
 		}
 
+		itemTrade := item.tradename
 
-		item := item.tradename
+		OutputDebug, % item.itemname
 
-		OutputDebug, % item
-
-		payload := "{""query"":{""status"":{""option"":""online""},""have"":[""divine""],""want"":[""" item """]},""sort"":{""have"":""asc""},""engine"":""new""}"
+		payload := "{""query"":{""status"":{""option"":""online""},""have"":[""divine""],""want"":[""" itemTrade """]},""sort"":{""have"":""asc""},""engine"":""new""}"
 
 		retryIndexer := 1
 
@@ -403,13 +444,18 @@ Stash_FetchRealPrices(cHWND := "")
 				j++
 			}
 			mean /= places[i+1] - places[i]
+			vars.stash[vars.stash.true_price.activeStash][item.itemname].trueprices[i] := mean
 			table .= mean ", "
 		}
 		final := SubStr(table, 1, -2)
 		final .= """"
 		OutputDebug, % final
 
-		IniWrite, % final, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, % item
+		IniWrite, % final, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, % item.itemname
+		IniWrite, % A_Now, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, % item.itemname "_timestamp"
+
+
+		vars.stash[vars.stash.true_price.activeStash][item.itemname].trueTimestamp := A_Now
 
 		JustGoToNext:
 		OutputDebug, % vars.stash[vars.stash.true_price.activeStash].Count()
@@ -422,7 +468,6 @@ Stash_FetchRealPrices(cHWND := "")
 		}
 		Else
 		{
-			IniWrite, % A_Now, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, timestamp
 
 			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "ended"
 			vars.stash.true_price.inProgress := 0
