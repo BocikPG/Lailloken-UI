@@ -1,14 +1,14 @@
 ﻿Init_stash(refresh := 0)
 {
 	local
-	global vars, settings, db, Json, truePriceBool, multi
+	global vars, settings, db, Json
 	static json_data, exceptions := {"currency": ["reality fragment", "devouring fragment", "decaying fragment", "blazing fragment", "synthesising fragment", "cosmic fragment", "awakening fragment"
 		, "blessing of chayula", "blessing of xoph", "blessing of uul-netol", "blessing of tul", "blessing of esh", "ritual vessel", "oil extractor"], "fragments": ["simulacrum", "simulacrum splinter"]}
 		, dLimits := [[0.5, "", 3], [0.25, 0.5, 3], [10, 30, 1], [1, 10, 1], ["", 1, 1]], essences := ["whispering", "muttering", "weeping", "wailing", "screaming", "shrieking", "deafening"]
 
 	;//TODO: initialise all ;vars.stash.true_price["truepricestatus_" (foreach)vars.stash.active]
-	truePriceBool := 1
-	multi := 1
+	vars.stash.true_price.truePriceBool := 1
+	vars.stash.true_price.multi := 1
 
 	If Blank(settings.features.stash)
 		settings.features.stash := LLK_IniRead("ini\config.ini", "features", "enable stash-ninja", 0)
@@ -327,7 +327,7 @@ ItemAt(array, index)
 Stash_FetchRealPrices(cHWND := "")
 {
 	local
-	global vars, settings, truePriceIndexer, retryIndexer
+	global vars, settings
 	static places := [5,10,15,20,25,50]
 
 	if(vars.stash.true_price.inProgress = 1)
@@ -337,7 +337,7 @@ Stash_FetchRealPrices(cHWND := "")
 	vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "working!"
 	vars.stash.true_price.inProgress := 1
 
-	truePriceIndexer := 1
+	vars.stash.true_price.truePriceIndexer := 1
 
 	IniWrite, % settings.stash.league , data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, league
 	vars.stash[vars.stash.true_price.activeStash].trueLeague := settings.stash.league
@@ -355,7 +355,7 @@ Stash_FetchRealPrices(cHWND := "")
 		HTTP.SetProxy(2,"localhost:8888")
 
 
-		item := ItemAt(vars.stash[vars.stash.true_price.activeStash], truePriceIndexer)
+		item := ItemAt(vars.stash[vars.stash.true_price.activeStash], vars.stash.true_price.truePriceIndexer)
 		if(Blank(item))
 		{
 			vars.stash.true_price.inProgress := 0
@@ -364,7 +364,7 @@ Stash_FetchRealPrices(cHWND := "")
 		}
 		if(Blank(item.tradename))
 		{
-			truePriceIndexer++
+			vars.stash.true_price.truePriceIndexer++
 			Goto, ForLoopWithTimer
 		}
 
@@ -374,7 +374,7 @@ Stash_FetchRealPrices(cHWND := "")
 
 		payload := "{""query"":{""status"":{""option"":""online""},""have"":[""divine""],""want"":[""" itemTrade """]},""sort"":{""have"":""asc""},""engine"":""new""}"
 
-		retryIndexer := 1
+		vars.stash.true_price.retryIndexer := 1
 
 		RetryLoop:
 			HTTP.Send(payload)
@@ -396,11 +396,11 @@ Stash_FetchRealPrices(cHWND := "")
 
 			If (status != 200 || Blank(json_data) )
 			{
-				if(retryIndexer <= 3)
+				if(vars.stash.true_price.retryIndexer <= 3)
 				{
 					atime = -1 * Get_Await_Time(IP_limit, IP_limit_status)
 					SetTimer, RetryLoop, % atime
-					retryIndexer++
+					vars.stash.true_price.retryIndexer++
 					Return
 				}
 				Else
@@ -482,9 +482,9 @@ Stash_FetchRealPrices(cHWND := "")
 		JustGoToNext:
 		OutputDebug, % vars.stash[vars.stash.true_price.activeStash].Count()
 		HTTP := "" ;close out HTTP
-		if(truePriceIndexer + 1 <= vars.stash[vars.stash.true_price.activeStash].Count())
+		if(vars.stash.true_price.truePriceIndexer + 1 <= vars.stash[vars.stash.true_price.activeStash].Count())
 		{
-			truePriceIndexer++
+			vars.stash.true_price.truePriceIndexer++
 			time := -1 * Get_Await_Time(IP_limit, IP_limit_status)
 			SetTimer, ForLoopWithTimer, % time
 		}
@@ -531,9 +531,9 @@ Stash_Calibrate(cHWND)
 Stash_Close()
 {
 	local
-	global vars, settings, multi
+	global vars, settings
 
-	multi := 1
+	vars.stash.true_price.multi := 1
 	LLK_Overlay(vars.hwnd.stash.main, "destroy")
 	vars.stash.GUI := vars.stash.hover := vars.hwnd.stash.main := "", vars.settings.selected_tab := ""
 	If WinExist("ahk_id " vars.hwnd.settings.main) && (vars.settings.active = "stash-ninja")
@@ -569,7 +569,7 @@ Stash_Hotkeys()
 		}
 		If settings.stash.bulk_trade && InStr(hotkey, "RButton") && vars.stash[vars.stash.active][vars.stash.hover].prices.1
 			Stash_PricePicker()
-		LLK_Overlay(vars.hwnd.stash.main, "hide"), vars.stash.GUI := 0, vars.stash.enter := 1, 	multi := 1
+		LLK_Overlay(vars.hwnd.stash.main, "hide"), vars.stash.GUI := 0, vars.stash.enter := 1, 	vars.stash.true_price.multi := 1
 		While vars.stash.enter
 			Sleep 1
 		LLK_Overlay(vars.hwnd.stash.main, "show")
@@ -659,7 +659,7 @@ Stash_PriceHistory(gui_name, x, y, h, wSlice, data, ByRef min_max)
 Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 {
 	local
-	global vars, settings, truePriceBool, multi
+	global vars, settings
 
 	available := vars.stash.available, exalt := settings.stash.show_exalt, currencies := ["c", "e", "d"], currencies_verbose := ["chaos", "exalted", "divine"], lines := 0, tab := vars.stash.active
 	trend_data := vars.stash[tab][item].trend.Clone(), margins := StrSplit(settings.stash.margins, ",", A_Space), bulk_sizes := []
@@ -667,11 +667,11 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 	Gui, %GUI_name%: Font, % "s" settings.stash.fSize
 	If !trend ; nie trend więc price picking okienko z cenami do wyboru
 	{
-		xxx := truePriceBool ? "Green" : "Black"
+		xxx := vars.stash.true_price.truePriceBool ? "Green" : "Black"
 		Gui, %GUI_name%: Add, Text, % "x0 y0 Section Border gStash_PricePicker Center BackgroundTrans", % " x "
 		Gui, %GUI_name%: Add, Text, % "ys x+-1 Border gStash_PricePicker Center BackgroundTrans", % " DIV "
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp BackgroundBlack Disabled Border c" xxx, 100
-		if(truePriceBool)
+		if(vars.stash.true_price.truePriceBool)
 			Gui, %GUI_name%: Add, Text, % "ys x+-1 Border Center BackgroundTrans", % " Place on trade in top: "
 		Else
 			Gui, %GUI_name%: Add, Text, % "ys x+-1 Border Center BackgroundTrans", % " " LangTrans("stash_margin") ": "
@@ -690,7 +690,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 			If exalt && (A_Index = 2) || !exalt && (A_Index != 2)
 				dimensions[A_Index] := " " (A_Index = 4 ? LangTrans("stash_value") . " <  > " : Round(available * val.prices[A_Index], 2) . (available > 1 ? "`n@" Round(val.prices[A_Index], 2) : "`n")) " "
 		LLK_PanelDimensions(dimensions, settings.stash.fSize, wMarket, hMarket)
-		if(truePriceBool)
+		if(vars.stash.true_price.truePriceBool)
 		{
 			Gui, %GUI_name%: Add, Text, % "x0 y+-1 Section Border Center HWNDhwnd BackgroundTrans w" wMarket + hMarket - 1 - 36, % LangTrans("stash_value")
 			Gui, %GUI_name%: Add, Text, % "ys x+-1 Border gStash_PricePicker Center BackgroundTrans", % " < "
@@ -703,7 +703,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 
 		now := % A_Now
 		EnvSub, now, val.trueTimestamp, Hours
-		If(truePriceBool && now <= 4 && !Blank(val.trueTimestamp) && !Blank(now) && val.truestacks[1] >= 1 && !stack)
+		If(vars.stash.true_price.truePriceBool && now <= 4 && !Blank(val.trueTimestamp) && !Blank(now) && val.truestacks[1] >= 1 && !stack)
 		{
 			a := % settings.stash.margins
 			i := 1
@@ -722,7 +722,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 			Loop, 5
 			{
 				;bulk_sizes.Count() szerokość okna - ten loop ją ustawia
-				amount := Floor(val.truestacks[i] * multi)
+				amount := Floor(val.truestacks[i] * vars.stash.true_price.multi)
 				bulk_sizes.Push(amount)
 				if(amount > vars.stash.max_stack * 60)
 					color := " cSilver"
@@ -737,7 +737,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 				}
 				Else Gui, %GUI_name%: Add, Text, % "ys x+-1 BackgroundTrans HWNDhwnd Border Center w" wColumn . color, % amount
 
-				if(multi = 1)
+				if(vars.stash.true_price.multi = 1)
 					Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Disabled Border BackgroundBlack cGreen", 100
 				
 						
@@ -806,7 +806,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 				{
 					now := % A_Now
 					EnvSub, now, val.trueTimestamp, Hours
-					If(cType = "divine" && truePriceBool && now <= 4 && !Blank(val.trueTimestamp) && !Blank(now))
+					If(cType = "divine" && vars.stash.true_price.truePriceBool && now <= 4 && !Blank(val.trueTimestamp) && !Blank(now))
 					{
 						a := % settings.stash.margins
 						i := 1
@@ -971,7 +971,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1)
 Stash_PricePicker(cHWND := "")
 {
 	local
-	global vars, settings, truePriceBool, multi
+	global vars, settings
 	static toggle := 0
 
 	item := vars.stash.hover, tab := vars.stash.active, vars.stash.note := InStr(Clipboard, "`nnote:"), stack_unknown := 0
@@ -991,7 +991,7 @@ Stash_PricePicker(cHWND := "")
 			SendInput, ^{a}
 			Sleep, 50
 			SendInput, ^{v}{Enter}
-			multi := 1
+			vars.stash.true_price.multi := 1
 			Return
 		}
 		Else If (check = "ok")
@@ -1003,16 +1003,16 @@ Stash_PricePicker(cHWND := "")
 		}
 		Else If (A_GuiControl = " x ")
 		{
-			multi := 1
+			vars.stash.true_price.multi := 1
 			LLK_Overlay(vars.hwnd.stash_picker.main, "destroy"), vars.stash.enter := 0
 			Return
 		}
 		Else If (A_GuiControl = " DIV ")
 		{
-			if(truePriceBool)
-				truePriceBool := 0
+			if(vars.stash.true_price.truePriceBool)
+				vars.stash.true_price.truePriceBool := 0
 			Else
-				truePriceBool := 1
+				vars.stash.true_price.truePriceBool := 1
 		}
 		Else If (A_GuiControl = " < ")
 		{
@@ -1054,23 +1054,23 @@ Stash_PricePicker(cHWND := "")
 MultiDown()
 {
 	local
-	global multi
+	global vars
 
-	if(multi <= 1)
-		multi *= 0.5
+	if(vars.stash.true_price.multi <= 1)
+		vars.stash.true_price.multi *= 0.5
 	Else
-		multi--
+		vars.stash.true_price.multi--
 }
 
 MultiUp()
 {
 	local
-	global multi
+	global vars
 
-	if(multi <= 0.5)
-		multi *= 2
+	if(vars.stash.true_price.multi <= 0.5)
+		vars.stash.true_price.multi *= 2
 	Else
-		multi++
+		vars.stash.true_price.multi++
 }
 
 Stash_Selection(cHWND := "")
