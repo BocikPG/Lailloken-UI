@@ -75,6 +75,7 @@
 	;//TODO: initialise all ;vars.stash.true_price["truepricestatus_" (foreach)vars.stash.active]
 	vars.stash.true_price.truePriceBool := 1
 	vars.stash.true_price.multi := 1
+	vars.stash.true_price.inProgressOneTime := 0
 
 	If !oCheck ;set timestamp and league in vars.stash[tab]
 	{
@@ -351,7 +352,6 @@ Stash_FetchRealPrices(cHWND := "")
 {
 	local
 	global vars, settings
-	static places := [5,10,15,20,25,50]
 
 	if(vars.stash.true_price.inProgress = 1)
 		Return
@@ -370,7 +370,76 @@ Stash_FetchRealPrices(cHWND := "")
 	Goto, ForLoopWithTimer
 	
 	ForLoopWithTimer:
+	
+		item := ItemAt(vars.stash[vars.stash.true_price.activeStash], vars.stash.true_price.truePriceIndexer)
 
+		result := GetTruePrice(item, 1)
+
+		OutputDebug, % result
+
+		if(result = 1)
+			Goto, ForLoopWithTimer
+		else if( result = 3)
+			Return
+		else if(result = 5)
+		{
+			vars.stash.true_price["truepricestatus_progress"] := "END"
+			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "network error"
+			vars.stash.true_price.inProgress := 0
+		}
+
+
+		JustGoToNext:
+		;OutputDebug, % vars.stash[vars.stash.true_price.activeStash].Count()
+			if(vars.stash.true_price.truePriceIndexer + 1 <= vars.stash[vars.stash.true_price.activeStash].Count())
+			{
+				vars.stash.true_price.truePriceIndexer++
+				time := -1 * Get_Await_Time(vars.stash.true_price.IP_limit, vars.stash.true_price.IP_limit_status)
+				SetTimer, ForLoopWithTimer, % time
+			}
+			Else
+			{
+				vars.stash.true_price["truepricestatus_progress"] := "END"
+				vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "all fetched"
+				vars.stash.true_price.inProgress := 0
+			}
+
+	Return
+
+}
+
+GetTruePrice(item, inLoop := 0)
+{
+	local
+	global vars, settings
+	static places := [5,10,15,20,25,50] ;read it from settings
+
+	if(vars.stash.true_price.inProgressOneTime || (!inLoop && vars.stash.true_price.inProgress))
+		Return 0 ;another process is active
+
+	if(Blank(item))
+	{
+		if(inLoop)
+		{
+			vars.stash.true_price.inProgress := 0
+			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "ended"
+			Return 4 ; sucess
+		}
+		Return 2 ; failed - item empty can't proceed
+	}
+	if(Blank(item.tradename))
+	{
+		if(inLoop)
+		{
+			vars.stash.true_price.truePriceIndexer++
+			Return 1
+		}
+		OutputDebug, ITEM HAVE NO TRADENAME FILL IT IN [stash-ninja] tabs.json
+		Return 2 ; item has no tradename
+	}
+
+	try 
+	{
 		HTTP := ComObjCreate("WinHttp.WinHttpRequest.5.1")
 		HTTP.Open("POST", "https://www.pathofexile.com/api/trade/exchange/" settings.stash.league)
 		HTTP.SetRequestHeader("User-Agent", "OPR/106.0.0.0")
@@ -379,152 +448,177 @@ Stash_FetchRealPrices(cHWND := "")
 		IfWinExist, Fiddler
 		HTTP.SetProxy(2,"localhost:8888")
 
-
-		item := ItemAt(vars.stash[vars.stash.true_price.activeStash], vars.stash.true_price.truePriceIndexer)
-		if(Blank(item))
-		{
-			vars.stash.true_price.inProgress := 0
-			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "ended"
-			Return
-		}
-		if(Blank(item.tradename))
-		{
-			vars.stash.true_price.truePriceIndexer++
-			Goto, ForLoopWithTimer
-		}
-
 		itemTrade := item.tradename
+		OutputDebug, % itemTrade
 
 		payload := "{""query"":{""status"":{""option"":""online""},""have"":[""divine""],""want"":[""" itemTrade """]},""sort"":{""have"":""asc""},""engine"":""new""}"
+		
+		if(!inLoop)
+			vars.stash.true_price.inProgressOneTime := 1
 
-		vars.stash.true_price.retryIndexer := 1
+		if(inLoop)
+			vars.stash.true_price.retryIndexer := 1
+		Else
+			vars.stash.true_price.retryIndexerOneTimer := 1
 
 		RetryLoop:
 			HTTP.Send(payload)
 			HTTP.WaitForResponse()
-	
+
 			json_data := HTTP.ResponseText
 			IP_limit := HTTP.GetResponseHeader("X-Rate-Limit-Ip")
 			IP_limit_status := HTTP.GetResponseHeader("X-Rate-Limit-Ip-State")
+
+			vars.stash.true_price.IP_limit := IP_limit
+			vars.stash.true_price.IP_limit_status := IP_limit_status
+
 			status := HTTP.Status()
 
 			If (status = 429)
 			{
 				retry_after := HTTP.GetResponseHeader("Retry-After")
 				OutputDebug, banned
+
+				if(!inLoop)
+				{
+					vars.stash.true_price.inProgressOneTime := 0
+					Return 5 + retry_after ; banned - timeout for retry_after - 5 seconds (if >5)
+				}
+
 				atime = -1 * (retry_after + 2) * 1000
 				SetTimer, RetryLoop, % atime
-				Return
+				Return 3 ; banned - will try again when it can
 			}
+
+			indexer :=
+			if(inLoop)
+				indexer := vars.stash.true_price.retryIndexer
+			Else
+				indexer := vars.stash.true_price.retryIndexerOneTimer
 
 			If (status != 200 || Blank(json_data) )
 			{
-				if(vars.stash.true_price.retryIndexer <= 3)
+				if(indexer <= 3)
 				{
+					if(!inLoop)
+					{
+						vars.stash.true_price.inProgressOneTime := 0
+						Return 5 ; network error (or smth) (if = 5)
+					}
 					atime = -1 * Get_Await_Time(IP_limit, IP_limit_status)
 					SetTimer, RetryLoop, % atime
-					vars.stash.true_price.retryIndexer++
-					Return
+					if(inLoop)
+						vars.stash.true_price.retryIndexer++
+					Else
+						vars.stash.true_price.retryIndexerOneTimer++
+
+					Return 3 ; response not positive - will try again later
 				}
 				Else
 				{
+					if(!inLoop)
+						vars.stash.true_price.inProgressOneTime := 0
 					OutputDebug, skipped
-					Goto, JustGoToNext
+					Return 1 ; failed to retrive (bad item name/no items on)	
+
 				}
 			}
 
-		
-
-		offerCount := 0
-		divholder := 0
-		offersPrice := []
-		offersStack := []
-
-		new_json_data := StrReplace(json_data, """amount"":", "¢")
-		Loop, parse, new_json_data, ¢ ; Parse the string based on the cent symbol.
-		{
-			if(A_Index = 1)
-				Continue
-
-			number := StrSplit( A_LoopField , ",", , 2)
-			num := % number[1]
-
-			if(Mod(A_Index, 2) = 0)
-			{
-				divholder := num
-			}
-			Else
-			{
-				offerCount++
-				offersPrice.Push(divholder / num)
-				offersStack.Push(num / divholder)
-			}
-		}
-
-		j := 2
-		tablePrice := """"  ;"0, 0, 0, 0, 0"
-		tableStack := """"  ;"0, 0, 0, 0, 0"
-		Loop 5
-		{
-			i := A_Index
-			actualOffers := 0
-			meanPrice := 0
-			meanStack := 0
-			a := places[i+1] - places[i] 
-			Loop, % a
-			{
-				if(Blank(offersPrice[j]))
-					Break
-				meanPrice += offersPrice[j]
-				meanStack += offersStack[j]
-				j++
-				actualOffers++
-			}
-			meanPrice /= actualOffers 
-			meanStack /= actualOffers
-			vars.stash[vars.stash.true_price.activeStash][item.itemname].trueprices[i] := meanPrice
-			vars.stash[vars.stash.true_price.activeStash][item.itemname].truestacks[i] := meanStack
-			tablePrice .= meanPrice ", "
-			tableStack .= meanStack ", "
-		}
-		finalPrice := SubStr(tablePrice, 1, -2)
-		finalStack := SubStr(tableStack, 1, -2)
-		finalPrice .= """"
-		finalStack .= """"
-		;OutputDebug, % finalPrice
-		;OutputDebug, % finalStack
-
-		vars.stash.true_price.progressCount++
-
-		vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := item.itemname " fetched"
-		vars.stash.true_price["truepricestatus_progress"] := vars.stash.true_price.progressCount "/" vars.stash[vars.stash.true_price.activeStash].itemCount
-
-
-		IniWrite, % finalPrice, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, % item.itemname
-		IniWrite, % A_Now, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, % item.itemname "_timestamp"
-		
-		IniWrite, % finalStack, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, % item.itemname "_stack"
-		IniWrite, % A_Now, data\global\[stash-ninja] trueprices.ini , % vars.stash.true_price.activeStash, % item.itemname "_timestamp"
-
-		vars.stash[vars.stash.true_price.activeStash][item.itemname].trueTimestamp := A_Now
-
-		JustGoToNext:
-		;OutputDebug, % vars.stash[vars.stash.true_price.activeStash].Count()
 		HTTP := "" ;close out HTTP
-		if(vars.stash.true_price.truePriceIndexer + 1 <= vars.stash[vars.stash.true_price.activeStash].Count())
+	}
+	catch e
+	{
+		Return 5
+	}
+
+	
+	; analyze start
+	offerCount := 0
+	divholder := 0
+	offersPrice := []
+	offersStack := []
+	
+	activeStash :=
+	if(inLoop)
+		activeStash := vars.stash.true_price.activeStash
+	Else
+		activeStash := vars.stash.active
+	
+	new_json_data := StrReplace(json_data, """amount"":", "¢")
+	Loop, parse, new_json_data, ¢ ; Parse the string based on the cent symbol.
+	{
+		if(A_Index = 1)
+			Continue
+		number := StrSplit( A_LoopField , ",", , 2)
+		num := % number[1]
+		if(Mod(A_Index, 2) = 0)
 		{
-			vars.stash.true_price.truePriceIndexer++
-			time := -1 * Get_Await_Time(IP_limit, IP_limit_status)
-			SetTimer, ForLoopWithTimer, % time
+			divholder := num
 		}
 		Else
 		{
-			vars.stash.true_price["truepricestatus_progress"] := "END"
-			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "all fetched"
-			vars.stash.true_price.inProgress := 0
+			offerCount++
+			offersPrice.Push(divholder / num)
+			offersStack.Push(num / divholder)
 		}
-	Return
+	}
 
+	j := 2
+	tablePrice := """"  ;"0, 0, 0, 0, 0"
+	tableStack := """"  ;"0, 0, 0, 0, 0"
+	Loop 5
+	{
+		i := A_Index
+		actualOffers := 0
+		meanPrice := 0
+		meanStack := 0
+		a := places[i+1] - places[i] 
+		Loop, % a
+		{
+			if(Blank(offersPrice[j]))
+				Break
+			meanPrice += offersPrice[j]
+			meanStack += offersStack[j]
+			j++
+			actualOffers++
+		}
+		meanPrice /= actualOffers 
+		meanStack /= actualOffers
+		vars.stash[activeStash][item.itemname].trueprices[i] := meanPrice
+		vars.stash[activeStash][item.itemname].truestacks[i] := meanStack
+		tablePrice .= meanPrice ", "
+		tableStack .= meanStack ", "
+	}
+	finalPrice := SubStr(tablePrice, 1, -2)
+	finalStack := SubStr(tableStack, 1, -2)
+	finalPrice .= """"
+	finalStack .= """"
+	;OutputDebug, % finalPrice
+	;OutputDebug, % finalStack
+
+	; analyze stop
+
+	if(inLoop)
+	{
+		vars.stash.true_price.progressCount++
+		vars.stash.true_price["truepricestatus_progress"] := vars.stash.true_price.progressCount "/" vars.stash[activeStash].itemCount
+	}
+
+	vars.stash.true_price["truepricestatus_" activeStash] := item.itemname " fetched"
+
+
+	IniWrite, % finalPrice, data\global\[stash-ninja] trueprices.ini , % activeStash, % item.itemname
+	IniWrite, % A_Now, data\global\[stash-ninja] trueprices.ini , % activeStash, % item.itemname "_timestamp"
+		
+	IniWrite, % finalStack, data\global\[stash-ninja] trueprices.ini , % activeStash, % item.itemname "_stack"
+	IniWrite, % A_Now, data\global\[stash-ninja] trueprices.ini , % activeStash, % item.itemname "_timestamp"
+
+	vars.stash[activeStash][item.itemname].trueTimestamp := A_Now
+
+	if(!inLoop)
+		vars.stash.true_price.inProgressOneTime := 0
+
+	Return 4 ;done
 }
 
 Stash_Calibrate(cHWND)
@@ -597,7 +691,12 @@ Stash_Hotkeys()
 			Return
 		}
 		If settings.stash.bulk_trade && InStr(hotkey, "RButton") && vars.stash[vars.stash.active][vars.stash.hover].prices.1
+		{
+			item := vars.stash[vars.stash.active][vars.stash.hover]
+			item.itemname := vars.stash.hover
+			GetTruePrice(item)
 			Stash_PricePicker()
+		}
 		LLK_Overlay(vars.hwnd.stash.main, "hide"), vars.stash.GUI := 0, vars.stash.enter := 1, 	vars.stash.true_price.multi := 1
 		While vars.stash.enter
 			Sleep 1
