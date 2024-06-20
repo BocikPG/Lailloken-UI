@@ -131,9 +131,7 @@
 
 		vars.stash[tab].itemCount := count
 
-		now := % A_Now
-		EnvSub, now, trueTimestamp, Hours
-		If( now <= 4 && !Blank(trueTimestamp) && !Blank(now))
+		If(IsTimeStampActual(trueTimestamp))
 		{
 			vars.stash.true_price["truepricestatus_" tab] := "Div prices actual"
 		}
@@ -217,9 +215,7 @@ Stash_(mode, test := 0)
 				if(lType = 3) ;if divines
 				{
 					repairLater := val.prices[lType]
-					now := % A_Now
-					EnvSub, now, val.trueTimestamp, Hours
-					if(now <= 4 && !Blank(val.trueTimestamp) && !Blank(now)) ; if data if fresh (maybe put that in settings)
+					if(IsTimeStampActual(val.trueTimestamp)) ; if data if fresh (maybe put that in settings)
 					{
 						margin := settings.stash[tab].margin := LLK_HasVal(margins, settings.stash[tab].margin) ? settings.stash[tab].margin : margins.1, margin := margin ? Round(margin / 100, 2) : margin
 						a := % settings.stash.margins
@@ -375,7 +371,7 @@ Stash_FetchRealPrices(cHWND := "")
 
 		result := GetTruePrice(item, 1)
 
-		OutputDebug, % result
+		;OutputDebug, % result
 
 		if(result = 1)
 			Goto, ForLoopWithTimer
@@ -449,7 +445,7 @@ GetTruePrice(item, inLoop := 0)
 		HTTP.SetProxy(2,"localhost:8888")
 
 		itemTrade := item.tradename
-		OutputDebug, % itemTrade
+		;OutputDebug, % itemTrade
 
 		payload := "{""query"":{""status"":{""option"":""online""},""have"":[""divine""],""want"":[""" itemTrade """]},""sort"":{""have"":""asc""},""engine"":""new""}"
 		
@@ -693,8 +689,13 @@ Stash_Hotkeys()
 		If settings.stash.bulk_trade && InStr(hotkey, "RButton") && vars.stash[vars.stash.active][vars.stash.hover].prices.1
 		{
 			item := vars.stash[vars.stash.active][vars.stash.hover]
-			item.itemname := vars.stash.hover
-			GetTruePrice(item)
+			if(!IsTimeStampActual(item.trueTimestamp))
+			{
+				LLK_ToolTip(LangTrans("stash_update"), 10000,,, "stashprices", "lime")
+				item.itemname := vars.stash.hover
+				GetTruePrice(item)
+				vars.tooltip[vars.hwnd["tooltipstashprices"]] := A_TickCount
+			}
 			Stash_PricePicker()
 		}
 		LLK_Overlay(vars.hwnd.stash.main, "hide"), vars.stash.GUI := 0, vars.stash.enter := 1, 	vars.stash.true_price.multi := 1
@@ -784,20 +785,57 @@ Stash_PriceHistory(gui_name, x, y, h, wSlice, data, ByRef min_max)
 	Return xControl + wControl
 }
 
+IsTimeStampActual(pastTimestamp, laterTimestamp := -1 , lessThanHours := 4 )
+{
+	if(laterTimestamp = -1)
+		laterTimestamp := % A_Now
+	EnvSub, laterTimestamp, pastTimestamp, Hours
+	if(laterTimestamp <= lessThanHours && !Blank(pastTimestamp) && !Blank(laterTimestamp))
+		Return 1
+	Return 0
+}
+
 Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 {
 	local
 	global vars, settings
 
+	if(Blank(item) || Blank(val))
+		Return
+
 	available := vars.stash.available, exalt := settings.stash.show_exalt, currencies := ["c", "e", "d"], currencies_verbose := ["chaos", "exalted", "divine"], lines := 0, tab := vars.stash.active
 	trend_data := vars.stash[tab][item].trend.Clone(), margins := StrSplit(settings.stash.margins, ",", A_Space), bulk_sizes := []
 	margin := settings.stash[tab].margin := LLK_HasVal(margins, settings.stash[tab].margin) ? settings.stash[tab].margin : margins.1, margin := margin ? Round(margin / 100, 2) : margin
+	tempPrice := val.prices[3]
 	Gui, %GUI_name%: Font, % "s" settings.stash.fSize
 	If !trend ; nie trend więc price picking okienko z cenami do wyboru
 	{
+		a := % settings.stash.margins
+		i := 1
+		Loop, Parse, a , `, , %A_Space%
+		{
+			if(margin * 100 = A_LoopField)
+				Break
+			i++
+		}
+		if(i>=6)
+			i = 1
+
+		if(IsTimeStampActual(val.trueTimestamp) val.truestacks[1] >= 1)
+		{
+			additions := " gStash_PricePicker"
+			tempPrice := val.prices[3]
+			val.prices[3] := val.trueprices[i]
+		}
+		Else
+		{
+			additions := " cRed"
+			vars.stash.true_price.truePriceBool := 0
+		}
+
 		xxx := vars.stash.true_price.truePriceBool ? "Green" : "Black"
 		Gui, %GUI_name%: Add, Text, % "x0 y0 Section Border gStash_PricePicker Center BackgroundTrans", % " x "
-		Gui, %GUI_name%: Add, Text, % "ys x+-1 Border gStash_PricePicker Center BackgroundTrans", % " DIV "
+		Gui, %GUI_name%: Add, Text, % "ys x+-1 Border Center BackgroundTrans" . additions, % " DIV "
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp BackgroundBlack Disabled Border c" xxx, 100
 		if(vars.stash.true_price.truePriceBool)
 			Gui, %GUI_name%: Add, Text, % "ys x+-1 Border Center BackgroundTrans", % " Place on trade in top: "
@@ -829,20 +867,9 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 		Gui, %GUI_name%: Add, Progress, % "ys x+-1 Disabled Background606060 w" settings.stash.fWidth//2 " hp", 0
 		available0 := (available / vars.stash.max_stack > 60) ? vars.stash.max_stack * 60 : available
 
-		now := % A_Now
-		EnvSub, now, val.trueTimestamp, Hours
-		If(vars.stash.true_price.truePriceBool && now <= 4 && !Blank(val.trueTimestamp) && !Blank(now) && val.truestacks[1] >= 1 && !stack)
+		If(vars.stash.true_price.truePriceBool && IsTimeStampActual(val.trueTimestamp) && val.truestacks[1] >= 1)
 		{
-			a := % settings.stash.margins
-			i := 1
-			Loop, Parse, a , `, , %A_Space%
-			{
-				if(margin * 100 = A_LoopField)
-					Break
-				i++
-			}
-			if(i>=6)
-				i = 1
+			
 
 			tempMulti := vars.stash.true_price.multi
 
@@ -930,9 +957,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 			{
 				For iBulk, vBulk in bulk_sizes
 				{
-					now := % A_Now
-					EnvSub, now, val.trueTimestamp, Hours
-					If(cType = "divine" && vars.stash.true_price.truePriceBool && now <= 4 && !Blank(val.trueTimestamp) && !Blank(now))
+					If(cType = "divine" && vars.stash.true_price.truePriceBool && IsTimeStampActual(val.trueTimestamp))
 					{
 						a := % settings.stash.margins
 						i := 1
@@ -995,6 +1020,7 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, stack := "")
 			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cMaroon", 100
 		}
 	}
+	val.prices[3] = tempPrice
 }
 
 /*
