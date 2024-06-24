@@ -159,13 +159,16 @@ Stash_(mode, test := 0)
 		tab := (A_Index = 1 || InStr(mode, "currency") ? "currency" : (mode = "refresh") ? (InStr(vars.stash.active, "currency") ? "currency" : vars.stash.active) : mode)
 		tab := (tab = "breach" || A_Index = 3) ? "fragments" : tab, now := A_Now, timestamp := vars.stash[tab].timestamp, league := vars.stash[tab].league
 		EnvSub, now, timestamp, Minutes
-		If (league != settings.stash.league) || Blank(timestamp) || Blank(now) || (now >= 31)
+		If (league != settings.stash.league) || Blank(timestamp) || Blank(now) || (now >= 31) || (tab = "fragments" && Blank(vars.stash[tab]["tft_Elder Set"].components))
 		{
 			If !tooltip
 				LLK_ToolTip(LangTrans("stash_update"), 10000,,, "stashprices", "lime")
 			check := Stash_PriceFetch(tab), tooltip := 1
 			if(tab = "fragments")
+			{
 				Fetch_TFT_Prices()
+				Get_Better_Offer()
+			}
 			If !check
 			{
 				LLK_ToolTip(LangTrans("stash_updateerror", 2), 2,,,, "red"), now := A_Now
@@ -198,7 +201,7 @@ Stash_(mode, test := 0)
 	lBot := settings.stash[tab].limits[profile].1, lTop := settings.stash[tab].limits[profile].2, lType := settings.stash[tab].limits[profile].3
 	lBot := Blank(lBot) ? (lType = 4) ? -999 : 0 : lBot, lTop := Blank(lTop) ? 999999 : lTop
 	count := added := 0, width := Floor(vars.client.h * (37/60)), height := vars.client.h, currencies := ["chaos", "exalt", "divine", "percent"], vars.stash.wait := 1, vars.stash.enter := 0
-
+		
 	For item, val in vars.stash[tab] ; add gui bar for each item in stash
 		If IsObject(val) && (!Blank(lType) && LLK_IsBetween((lType = 4) ? val.trend[val.trend.MaxIndex()] : Round(val.prices[lType], 2), lBot, lTop) || test || InStr(item, "tab_")|| InStr(item, "tft_")) ;|| (item = vars.stash.hover) | what is (lType = 4) ????
 		{
@@ -213,14 +216,29 @@ Stash_(mode, test := 0)
 			}
 			Else If InStr(item, "tft_")
 			{
+				color := "Black"
+				if(val.prices[3] = 0)
+					color := "Gray"
+				else if(val.priceSum > val.prices[3])
+					color := "Red"
+				Else
+				{
+					if(val.isBulkPriced)
+						color := colors.2
+					Else
+						color := "Yellow"
+				}
 				button := SubStr(item, InStr(item, "_") + 1)
 				button := StrReplace(button, "Unrelenting", "Uber")
 				button := StrReplace(button, "'s")
 				Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 " y" val.coords.2 " w" dButtons * 1.5 " h" dButtons * 3.5 " c" colors.1 . (hidden ? " Hidden" : ""), % "TFT " button "`n`n" val.prices[3]
-				Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" colors.2 . (hidden ? " Hidden" : ""), 0
+				Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" color . (hidden ? " Hidden" : ""), 0
 			}
 			Else
 			{
+				color := "Yellow"
+				if(IsTimeStampActual(val.trueTimestamp))
+					color := colors.2
 				if(lType = 3) ;if divines
 				{
 					repairLater := val.prices[lType]
@@ -239,14 +257,13 @@ Stash_(mode, test := 0)
 							i = 1
 						val.prices[lType] := val.trueprices[i]
 					}
-	
 				}
 					
 				price := Round(val.prices[lType], (val.prices[lType] > 1000) ? 0 : (val.prices[lType] > 100) ? 1 : 2)
 				exception1 := LLK_PatternMatch(item, "", ["potent", "powerful", "prime"]) ? 1 : 0, exception2 := LLK_PatternMatch(item, "", ["powerful", "prime"]) ? 1 : 0
 				Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Right c" colors.1 " x" val.coords.1 " y" val.coords.2 + (exception1 ? vars.client.h * (1/12) : dBox) - settings.stash.fHeight2
 					. " w" (exception2 ? vars.client.h * (1/12) : dBox) . (hidden ? " Hidden" : ""), % (test ? A_Index : (lType = 4) ? val.trend[val.trend.MaxIndex()] : price) " "
-				Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" colors.2 . (hidden ? " Hidden" : ""), 0
+				Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" color . (hidden ? " Hidden" : ""), 0
 				vars.hwnd.stash[item] := hwnd
 				If (vars.stash.hover = item)
 				{
@@ -320,7 +337,7 @@ b64Decode(string)
 Fetch_TFT_Prices()
 {
 	local
-	global vars
+	global vars, settings
 	try 
 	{
 		HTTP := ComObjCreate("WinHttp.WinHttpRequest.5.1")
@@ -374,10 +391,45 @@ Fetch_TFT_Prices()
 	{
 		Return 0
 	}
-	
-	
+
+	vars.stash["fragments"]["tft_Unrelenting 5 Way Set"].components := ["unrelenting timeless eternal emblem","unrelenting timeless karui emblem","unrelenting timeless vaal emblem","unrelenting timeless templar emblem","unrelenting timeless maraketh emblem"]
+	vars.stash["fragments"]["tft_5 Way Set"].components := ["timeless eternal emblem","timeless karui emblem","timeless vaal emblem","timeless templar emblem","timeless maraketh emblem"]
+	vars.stash["fragments"]["tft_Maven's Writ"].components := ["the maven's writ"]
+	vars.stash["fragments"]["tft_Uber Elder Set"].components := ["fragment of knowledge","fragment of terror","fragment of shape","fragment of emptiness"]
+	vars.stash["fragments"]["tft_Elder Set"].components := ["fragment of purification","fragment of enslavement","fragment of constriction","fragment of eradication"]
+	vars.stash["fragments"]["tft_Sirus Set"].components := ["veritania's crest","al-hezmin's crest","drox's crest","baran's crest"]
+	vars.stash["fragments"]["tft_Shaper Set"].components := ["fragment of the hydra","fragment of the phoenix","fragment of the chimera","fragment of the minotaur"]	
 
 	Return 1
+}
+
+Get_Better_Offer()
+{
+	local
+	global vars
+
+	For key, val in vars.stash["fragments"]
+	{
+		if(!InStr(key, "tft_"))
+			Continue
+
+		isBulkPriced := 1
+		val.priceSum := 0
+		For item, comp in val.components
+		{
+			if(!IsTimeStampActual(vars.stash["fragments"][comp].trueTimestamp) || vars.stash["fragments"][item].trueprices[2] = 0)
+			{
+				isBulkPriced := 0
+				val.priceSum += vars.stash["fragments"][comp].prices[3]
+			}
+			Else
+			{
+				val.priceSum += vars.stash["fragments"][comp].trueprices[2]
+			}
+		}
+		val.isBulkPriced := isBulkPriced
+
+	}
 }
 
 
@@ -462,6 +514,8 @@ Stash_FetchRealPrices(cHWND := "")
 			Return
 		else if(result = 5)
 		{
+			if(vars.stash.true_price.activeStash = "fragments")
+				Get_Better_Offer()
 			vars.stash.true_price["truepricestatus_progress"] := "END"
 			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "network error"
 			vars.stash.true_price.inProgress := 0
@@ -478,6 +532,8 @@ Stash_FetchRealPrices(cHWND := "")
 			}
 			Else
 			{
+				if(vars.stash.true_price.activeStash = "fragments")
+					Get_Better_Offer()
 				vars.stash.true_price["truepricestatus_progress"] := "END"
 				vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "all fetched"
 				vars.stash.true_price.inProgress := 0
@@ -547,6 +603,8 @@ GetTruePrice(item, inLoop := 0)
 			json_data := HTTP.ResponseText
 			IP_limit := HTTP.GetResponseHeader("X-Rate-Limit-Ip")
 			IP_limit_status := HTTP.GetResponseHeader("X-Rate-Limit-Ip-State")
+
+			;OutputDebug, % json_data
 
 			vars.stash.true_price.IP_limit := IP_limit
 			vars.stash.true_price.IP_limit_status := IP_limit_status
@@ -623,8 +681,8 @@ GetTruePrice(item, inLoop := 0)
 	Else
 		activeStash := vars.stash.active
 	
-	new_json_data := StrReplace(json_data, """amount"":", "¢")
-	Loop, parse, new_json_data, ¢ ; Parse the string based on the cent symbol.
+	new_json_data := StrReplace(json_data, """amount"":", "№") ;'–'
+	Loop, parse, new_json_data, № ; Parse the string based on the cent symbol.
 	{
 		if(A_Index = 1)
 			Continue
