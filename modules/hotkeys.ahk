@@ -288,6 +288,8 @@ HotkeysTab()
 *4::
 *5::
 *6::
+*WheelUp::
+*WheelDown::
 ~+LButton::
 ~*RButton::Stash_Hotkeys()
 

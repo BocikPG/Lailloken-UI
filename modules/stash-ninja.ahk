@@ -216,23 +216,41 @@ Stash_(mode, test := 0)
 			}
 			Else If InStr(item, "tft_")
 			{
-				color := "Black"
-				if(val.prices[3] = 0)
-					color := "Gray"
-				else if(val.priceSum > val.prices[3])
-					color := "Red"
+				if(InStr(item, "_price"))
+				{
+					if(InStr(item, vars.stash.hover))
+						hidden := 0
+					sub := SubStr(item, 1, -6)
+					Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 " y" val.coords.2 " w" dButtons * 1.5 " h" dButtons " cWhite" . (hidden ? " Hidden" : ""), % vars.stash[tab][sub].prices[2]
+					Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd BackgroundBlack" . (hidden ? " Hidden" : ""), 0
+				}
 				Else
 				{
-					if(val.isBulkPriced)
-						color := colors.2
+					if(vars.stash.hover = item . "_price")
+						hidden := 0
+					color := "Black"
+					if(val.prices[3] = 0)
+						color := "Gray"
+					else if(val.priceSum > val.prices[2])
+						color := "Red"
 					Else
-						color := "Yellow"
+					{
+						if(val.isBulkPriced)
+							color := colors.2
+						Else
+							color := "Yellow"
+					}
+					button := SubStr(item, InStr(item, "_") + 1)
+					button := StrReplace(button, "Unrelenting", "Uber")
+					button := StrReplace(button, "'s")
+					Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 " y" val.coords.2 " w" dButtons * 1.5 " h" dButtons * 2.5 " c" colors.1 . (hidden ? " Hidden" : ""), % "TFT " button 
+					Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" color . (hidden ? " Hidden" : ""), 0
+	
+					Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 " y" val.coords.2 + dButtons * 3.5 " w" dButtons * (3/4) " h" 20 " cWhite" . (hidden ? " Hidden" : ""), % val.stackSize
+					Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd BackgroundBlack" . (hidden ? " Hidden" : ""), 0
+					Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 + 1 + dButtons * (3/4) " y" val.coords.2 + dButtons * 3.5 " w"  dButtons * (3/4) " h" 20 " cWhite" . (hidden ? " Hidden" : ""), % val.stackValue
+					Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd BackgroundBlack" . (hidden ? " Hidden" : ""), 0
 				}
-				button := SubStr(item, InStr(item, "_") + 1)
-				button := StrReplace(button, "Unrelenting", "Uber")
-				button := StrReplace(button, "'s")
-				Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 " y" val.coords.2 " w" dButtons * 1.5 " h" dButtons * 3.5 " c" colors.1 . (hidden ? " Hidden" : ""), % "TFT " button "`n`n" val.prices[3]
-				Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" color . (hidden ? " Hidden" : ""), 0
 			}
 			Else
 			{
@@ -324,16 +342,6 @@ Stash_(mode, test := 0)
 	Return 1
 }
 
-b64Decode(string)
-{
-    if !(DllCall("crypt32\CryptStringToBinary", "ptr", &string, "uint", 0, "uint", 0x1, "ptr", 0, "uint*", size, "ptr", 0, "ptr", 0))
-        throw Exception("CryptStringToBinary failed", -1)
-    VarSetCapacity(buf, size, 0)
-    if !(DllCall("crypt32\CryptStringToBinary", "ptr", &string, "uint", 0, "uint", 0x1, "ptr", &buf, "uint*", size, "ptr", 0, "ptr", 0))
-        throw Exception("CryptStringToBinary failed", -1)
-    return StrGet(&buf, size, "UTF-8")
-}
-
 Fetch_TFT_Prices()
 {
 	local
@@ -367,6 +375,8 @@ Fetch_TFT_Prices()
 
 			set_name := SubStr(key, InStr(key, "_") + 1)
 
+			val.stackSize := 1
+
 			name_found := 0
 
 			Loop, parse, content, `,: ; Parse the string based on the cent symbol.
@@ -380,6 +390,7 @@ Fetch_TFT_Prices()
 					number := StrSplit( A_LoopField , ",", , 2)
 					num := % number[1]
 					val.prices[3] := num
+					val.prices[2] := num
 					Break
 				}
 			}
@@ -814,11 +825,20 @@ Stash_Hotkeys()
 		hotkey := StrReplace(hotkey, A_LoopField)
 
 	If IsNumber(hotkey) && hotkey = 6
-		Stash_FetchRealPrices(), Stash_("refresh"), in_progress := 0
+	{
+		Stash_FetchRealPrices()
+		Stash_("refresh")
+		in_progress := 0
+	}
 	If IsNumber(hotkey) && !Blank(settings.stash[tab].limits[hotkey].3) && (hotkey != settings.stash[tab].profile)
 		settings.stash[tab].profile := hotkey, Stash_("refresh")
 	Else If InStr(hotkey, "Button") && vars.stash.hover
 	{
+		if(Blank(vars.stash.hover))
+		{
+			in_progress := 0
+			Return
+		}
 		Clipboard := ""
 		SendInput, ^{c}
 		ClipWait, 0.05
@@ -843,6 +863,57 @@ Stash_Hotkeys()
 		While vars.stash.enter
 			Sleep 1
 		LLK_Overlay(vars.hwnd.stash.main, "show")
+	}
+	Else If InStr(hotkey, "Wheel") && vars.stash.hover
+	{
+		if(Blank(vars.stash.hover))
+		{
+			in_progress := 0
+			Return
+		}
+		if(!InStr(vars.stash.hover, "tft_"))
+		{
+			in_progress := 0
+			Return
+		}
+		if(InStr(vars.stash.hover, "_price"))
+		{
+			sub := SubStr(vars.stash.hover, 1, -6)
+			item := vars.stash[vars.stash.active][sub]
+			if(InStr(hotkey, "WheelDown"))
+			{
+				if(item.prices[2] > 0)
+					item.prices[2] -= 0.1
+			}
+			else if(InStr(hotkey, "WheelUp"))
+			{
+				item.prices[2] += 0.1
+			}
+			item.prices[2] := Round(item.prices[2], 1)
+			item.stackValue := Round(item.stackSize * item.prices[2])
+		}
+		Else
+		{
+			item := vars.stash[vars.stash.active][vars.stash.hover]
+			if(InStr(hotkey, "WheelDown"))
+			{
+				if(item.stackSize > 0)
+					item.stackSize--
+			}
+			else if(InStr(hotkey, "WheelUp"))
+			{
+				item.stackSize++
+			}
+			item.stackValue := Round(item.stackSize * item.prices[2])
+		}
+		Stash_("refresh")
+		in_progress := 0
+		Return
+	}
+	if(Blank(vars.stash.hover))
+	{
+		in_progress := 0
+		Return
 	}
 	KeyWait, % hotkey
 	in_progress := 0
