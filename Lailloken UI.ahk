@@ -518,6 +518,7 @@ Init_general()
 	settings.general.trans := 230
 	settings.general.blocked_hotkeys := {"!": 1, "^": 1, "+": 1}
 	settings.general.character := ini.settings["active character"]
+	settings.general.characterTrue := ini.settings["active characterTrue"]
 	settings.general.dev := !Blank(check := ini.settings["dev"]) ? check : 0
 	settings.general.dev_env := settings.general.dev * (!Blank(check := ini.settings["dev env"]) ? check : 0)
 	settings.general.xButton := !Blank(check := ini.UI["button xcoord"]) ? check : 0

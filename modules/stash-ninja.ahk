@@ -224,6 +224,14 @@ Stash_(mode, test := 0)
 					Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 " y" val.coords.2 " w" dButtons * 1.5 " h" dButtons " cWhite" . (hidden ? " Hidden" : ""), % vars.stash[tab][sub].prices[2]
 					Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd BackgroundBlack" . (hidden ? " Hidden" : ""), 0
 				}
+				Else If(item = "tft_All Green Sell")
+				{
+					Gui, %GUI_name%: Font, % "s8 cBlack", % vars.system.font
+					Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 " y" val.coords.2 " w"  dButtons * 1.5 " h" dButtons * 1.5 " c" colors.1 . (hidden ? " Hidden" : ""), TFT SELL ALL GREEN
+					Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" colors.2 . (hidden ? " Hidden" : ""), 0
+				
+					Gui, %GUI_name%: Font, % "s" settings.stash.fSize2 " cWhite", % vars.system.font
+				}
 				Else
 				{
 					if(vars.stash.hover = item . "_price")
@@ -839,6 +847,14 @@ Stash_Hotkeys()
 			in_progress := 0
 			Return
 		}
+
+		if(vars.stash.hover = "tft_All Green Sell" && InStr(hotkey, "RButton"))
+		{
+			Stash_PricePicker()
+			in_progress := 0
+			Return
+		}
+
 		Clipboard := ""
 		SendInput, ^{c}
 		ClipWait, 0.05
@@ -890,7 +906,7 @@ Stash_Hotkeys()
 				item.prices[2] += 0.1
 			}
 			item.prices[2] := Round(item.prices[2], 1)
-			item.stackValue := Round(item.stackSize * item.prices[2])
+			item.stackValue := Round(item.stackSize * item.prices[2], 1)
 		}
 		Else
 		{
@@ -904,7 +920,12 @@ Stash_Hotkeys()
 			{
 				item.stackSize++
 			}
-			item.stackValue := Round(item.stackSize * item.prices[2])
+			item.stackValue := Round(item.stackSize * item.prices[2], 1)
+		}
+		mod := Mod(item.stackValue, 1)
+		if(mod = 0.9 || mod = 0 || mod = 0.1)
+		{
+			item.stackValue := Round(item.stackValue)
 		}
 		Stash_("refresh")
 		in_progress := 0
@@ -1292,6 +1313,53 @@ Stash_PricePicker(cHWND := "")
 	}
 
 	KeyWait, RButton
+
+	If(item = "tft_All Green Sell")
+	{
+		if(Blank(settings.general.character))
+		{
+			LLK_ToolTip("Specify character name in settings -> general", 5,,, "tft_copy_fail", "red")
+			Return
+		}
+		message := "WTS Softcore`n-------------------------------------`n"
+		fields := 0
+		For item, val in vars.stash["fragments"]
+		{
+			if(!InStr(item, "tft_"))
+				Continue
+			if(InStr(item, "_price") || item = "tft_All Green Sell")
+				Continue
+			set_name := SubStr(item, InStr(item, "_") + 1)
+			if(val.prices[3] = 0)
+				Continue
+			else if(val.priceSum > val.prices[2])
+				Continue
+			Else
+			{
+				if(Blank(val.stackValue) || val.stackValue = 0 )
+					Continue
+				if(val.isBulkPriced)
+				{
+					fields++
+					message .= val.stackSize "x " set_name " -> " val.prices[2] " :divine: each | all for " val.stackValue " :divine: `n"
+				}
+				Else
+					Continue
+			}
+		}
+		if(fields != 0)
+		{
+			message .= "-------------------------------------`nIGN: @" settings.general.characterTrue
+			Clipboard := message
+			LLK_ToolTip("Message copied to clipboard", 3,,, "tft_copy_sucess", "lime")
+		}
+		Else
+		{
+			LLK_ToolTip("Nothing to clip", 3,,, "tft_copy_fail", "red")
+		}
+		Return
+	}
+
 	toggle := !toggle, GUI_name := "stash_pricepicker" toggle, note := vars.stash.note := vars.stash.note ? SubStr(Clipboard, vars.stash.note + 7) : ""
 	If !override
 		If !InStr(Clipboard, LangTrans("items_stack"))

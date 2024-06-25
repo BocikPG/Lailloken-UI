@@ -583,7 +583,7 @@ Settings_general()
 		Else vars.hwnd.help_tooltips["settings_lang incompatible"] := hwnd
 
 		Gui, %GUI%: Font, % "s"settings.general.fSize - 4
-		Gui, %GUI%: Add, Edit, % "ys x+0 cBlack wp r1 hp gSettings_general2 HWNDhwnd" (settings.general.lang_client = "unknown" ? " Disabled" : ""), % LLK_StringCase(settings.general.character)
+		Gui, %GUI%: Add, Edit, % "ys x+0 cBlack wp r1 hp gSettings_general2 HWNDhwnd" (settings.general.lang_client = "unknown" ? " Disabled" : ""), % settings.general.character
 		If vars.log.level
 			Gui, %GUI%: Add, Text, % "ys x+-1 hp 0x200 Center Border", % " " LangTrans("m_general_level") " " vars.log.level " "
 		Gui, %GUI%: Font, % "s"settings.general.fSize
@@ -745,6 +745,14 @@ Settings_general2(cHWND := "")
 		Case "save_character":
 			If char_wait
 				Return
+			parse1 := LLK_ControlGet(vars.hwnd.settings.character), parse1 := InStr(parse1, " (") ? SubStr(parse1, 1, InStr(parse1, " (") - 1) : parse1
+			While (SubStr(parse1, 1, 1) = " ")
+				parse1 := SubStr(parse1, 2)
+			While (SubStr(parse1, 0) = " ")
+				parse1 := SubStr(parse1, 1, -1)
+			settings.general.characterTrue := parse1
+			IniWrite, % settings.general.characterTrue, ini\config.ini, Settings, active characterTrue
+
 			char_wait := 1, parse := LLK_StringCase(LLK_ControlGet(vars.hwnd.settings.character)), parse := InStr(parse, " (") ? SubStr(parse, 1, InStr(parse, " (") - 1) : parse
 			While (SubStr(parse, 1, 1) = " ")
 				parse := SubStr(parse, 2)
