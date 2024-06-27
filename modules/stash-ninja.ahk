@@ -232,6 +232,14 @@ Stash_(mode, test := 0)
 				
 					Gui, %GUI_name%: Font, % "s" settings.stash.fSize2 " cWhite", % vars.system.font
 				}
+				Else If(item = "tft_All Sell")
+				{
+					Gui, %GUI_name%: Font, % "s8 cBlack", % vars.system.font
+					Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 " y" val.coords.2 " w"  dButtons * 1.5 " h" dButtons * 1.5 " c" colors.1 . (hidden ? " Hidden" : ""), TFT SELL ALL
+					Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd BackgroundYellow" . (hidden ? " Hidden" : ""), 0
+				
+					Gui, %GUI_name%: Font, % "s" settings.stash.fSize2 " cWhite", % vars.system.font
+				}
 				Else
 				{
 					if(vars.stash.hover = item . "_price")
@@ -848,7 +856,7 @@ Stash_Hotkeys()
 			Return
 		}
 
-		if(vars.stash.hover = "tft_All Green Sell" && InStr(hotkey, "RButton"))
+		if((vars.stash.hover = "tft_All Green Sell" || vars.stash.hover = "tft_All Sell") && InStr(hotkey, "RButton"))
 		{
 			Stash_PricePicker()
 			in_progress := 0
@@ -1260,7 +1268,7 @@ Stash_PricePicker(cHWND := "")
 {
 	local
 	global vars, settings
-	static toggle := 0
+	static toggle := 0, sets := ["tft_Unrelenting 5 Way Set","tft_5 Way Set","tft_Sirus Set","tft_Maven's Writ","tft_Shaper Set","tft_Elder Set","tft_Uber Elder Set"]
 
 	item := vars.stash.hover, tab := vars.stash.active, vars.stash.note := InStr(Clipboard, "`nnote:"), stack_unknown := 0
 	If !Blank(cHWND)
@@ -1314,7 +1322,7 @@ Stash_PricePicker(cHWND := "")
 
 	KeyWait, RButton
 
-	If(item = "tft_All Green Sell")
+	If(Instr(item, "tft_All"))
 	{
 		if(Blank(settings.general.character))
 		{
@@ -1323,32 +1331,48 @@ Stash_PricePicker(cHWND := "")
 		}
 		message := "WTS Softcore`n-------------------------------------`n"
 		fields := 0
-		For item, val in vars.stash["fragments"]
+		setWidth := 15
+		For key, val in sets
 		{
-			if(!InStr(item, "tft_"))
-				Continue
-			if(InStr(item, "_price") || item = "tft_All Green Sell")
-				Continue
-			set_name := SubStr(item, InStr(item, "_") + 1)
-			if(val.prices[3] = 0)
-				Continue
-			else if(val.priceSum > val.prices[2])
-				Continue
+			loopItem := vars.stash["fragments"][val]
+			if(item = "tft_All Green Sell")
+			{
+				set_name := SubStr(val, InStr(val, "_") + 1)
+				if(loopItem.prices[3] = 0)
+					Continue
+				else if(loopItem.priceSum > loopItem.prices[2])
+					Continue
+				Else
+				{
+					if(Blank(loopItem.stackValue) || loopItem.stackValue = 0 )
+						Continue
+					if(loopItem.isBulkPriced)
+					{
+						fields++
+						message .= Format("{:3}x {:-" setWidth "}-> {:.1f} :divine: each | all for {} :divine: `n", loopItem.stackSize,  set_name, loopItem.prices[2], loopItem.stackValue)
+					}
+					Else
+						Continue
+				}
+			}
 			Else
 			{
-				if(Blank(val.stackValue) || val.stackValue = 0 )
+				set_name := SubStr(val, InStr(val, "_") + 1)
+
+				if(Blank(loopItem.stackValue) || loopItem.stackValue = 0 )
 					Continue
-				if(val.isBulkPriced)
-				{
-					fields++
-					message .= val.stackSize "x " set_name " -> " val.prices[2] " :divine: each | all for " val.stackValue " :divine: `n"
-				}
-				Else
-					Continue
+
+				if(val = "tft_Unrelenting 5 Way Set")
+					setWidth := 22
+
+				fields++
+				message .= Format("{:3}x {:-" setWidth "}-> {:.1f} :divine: each | all for {} :divine: `n", loopItem.stackSize,  set_name, loopItem.prices[2], loopItem.stackValue)
 			}
+			
 		}
 		if(fields != 0)
 		{
+			message := StrReplace(message, " ", " ") ; there is no better space sadly, to better fit there need to be another way like manually counting
 			message .= "-------------------------------------`nIGN: @" settings.general.characterTrue
 			Clipboard := message
 			LLK_ToolTip("Message copied to clipboard", 3,,, "tft_copy_sucess", "lime")
