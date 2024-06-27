@@ -75,6 +75,7 @@
 	vars.stash.true_price.truePriceBool := 1
 	vars.stash.true_price.multi := 1
 	vars.stash.true_price.inProgressOneTime := 0
+	vars.stash.true_price.stop := 0
 
 	If !oCheck ;set timestamp and league in vars.stash[tab]
 	{
@@ -529,6 +530,15 @@ Stash_FetchRealPrices(cHWND := "")
 	
 	ForLoopWithTimer:
 	
+		if(vars.stash.true_price.stop = 1)
+		{
+			vars.stash.true_price["truepricestatus_progress"] := "END"
+			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "stopped"
+			vars.stash.true_price.inProgress := 0
+			Stash_("refresh")
+			Return
+		}
+
 		item := ItemAt(vars.stash[vars.stash.true_price.activeStash], vars.stash.true_price.truePriceIndexer)
 
 		result := GetTruePrice(item, 1)
@@ -546,6 +556,7 @@ Stash_FetchRealPrices(cHWND := "")
 			vars.stash.true_price["truepricestatus_progress"] := "END"
 			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "network error"
 			vars.stash.true_price.inProgress := 0
+			Stash_("refresh")
 		}
 
 
@@ -564,6 +575,7 @@ Stash_FetchRealPrices(cHWND := "")
 				vars.stash.true_price["truepricestatus_progress"] := "END"
 				vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "all fetched"
 				vars.stash.true_price.inProgress := 0
+				Stash_("refresh")
 			}
 
 	Return
@@ -779,6 +791,8 @@ GetTruePrice(item, inLoop := 0)
 
 	vars.stash[activeStash][item.itemname].trueTimestamp := A_Now
 
+	Stash_("refresh")
+
 	if(!inLoop)
 		vars.stash.true_price.inProgressOneTime := 0
 
@@ -846,7 +860,12 @@ Stash_Hotkeys()
 		Stash_("refresh")
 		in_progress := 0
 	}
-	If IsNumber(hotkey) && !Blank(settings.stash[tab].limits[hotkey].3) && (hotkey != settings.stash[tab].profile)
+	Else If IsNumber(hotkey) && hotkey = 7
+	{
+		if((Blank(vars.stash.true_price.stop) || vars.stash.true_price.stop = 0) && vars.stash.true_price.inProgress = 1)
+			vars.stash.true_price.stop := 1
+	}
+	Else If IsNumber(hotkey) && !Blank(settings.stash[tab].limits[hotkey].3) && (hotkey != settings.stash[tab].profile)
 		settings.stash[tab].profile := hotkey, Stash_("refresh")
 	Else If InStr(hotkey, "Button") && vars.stash.hover
 	{
