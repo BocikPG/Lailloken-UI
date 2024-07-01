@@ -294,6 +294,10 @@ MButton::Stash_PricePicker("reset")
 *3::
 *4::
 *5::
+*6::
+*7::
+*WheelUp::
+*WheelDown::
 ~+LButton::
 ~*RButton::Stash_Hotkeys()
 
