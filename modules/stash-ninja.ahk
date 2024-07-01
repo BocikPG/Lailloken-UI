@@ -77,9 +77,6 @@
 		}
 	}
 
-	vars.stash.true_price.truePriceBool := 1
-	vars.stash.true_price.multi := 1
-	vars.stash.true_price.inProgressOneTime := 0
 	vars.stash.true_price.stop := 0
 
 	If !oCheck ;set timestamp and league in vars.stash[tab]
@@ -88,18 +85,11 @@
 		For tab in json_data
 			If !InStr("currency2, breach", tab)
 				tab := InStr(tab, "currency") ? "currency" : tab, vars.stash[tab].timestamp := ini[tab].timestamp, vars.stash[tab].league := ini[tab].league
-		
-		iniTrue := IniBatchRead("data\global\[stash-ninja] trueprices.ini",, "65001")
-		For tab in json_data
-			vars.stash[tab].trueLeague := iniTrue[tab].league
 	
 	}
 	tabs := vars.stash.tabs
-	sometimeago = 20240610101010
 	For tab, array in json_data
 	{
-		count := 0
-		trueTimestamp := 
 		gap := settings.stash[tab].gap, vars.stash[tab].box := dBox := vars.client.h//tabs[tab].1, in_folder := settings.stash[tab].in_folder
 		For index, array1 in array
 		{
@@ -116,34 +106,26 @@
 				name := array1.3 " catalyst"
 			Else name0 := name := array1.3 (tab = "delve" && !InStr(array1.3, "resonator") ? " fossil" : "")
 
-			If (tab = "scarabs" && !Instr(name, "tab_") && !Instr(name, "tft_"))
-				tradename := StrReplace(name, " ", "-")
-			tradename := !Blank(tradename) ? tradename : array1.4
-
 			exception1 := LLK_PatternMatch(name, "", ["potent", "powerful", "prime"]) ? 1 : 0, exception2 := LLK_PatternMatch(name, "", ["prime"]) ? 1 : 0
 			xCoord := array1.1 ? Floor((array1.1 / 1440) * vars.client.h) : xCoord + (exception2 ? vars.client.h * (1/12) : dBox) + gap * (tab = "scarabs" && index > 105 ? 2 : 1)
 			yCoord := array1.2 ? Floor(((array1.2 + (in_folder ? 47 : 0)) / 1440) * vars.client.h) : yCoord
 			tab0 := (check := LLK_HasVal(exceptions, name,,,, 1)) ? check : (tab = "breach") ? "fragments" : InStr(tab, "currency") || (tab = "ultimatum") ? "currency" : tab
 			prices := IsObject(vars.stash[tab][name].prices) ? vars.stash[tab][name].prices.Clone() : StrSplit(!Blank(check := ini[tab0][name]) ? check : "0, 0, 0", ",", A_Space, 3)
-			trueTimestamp := IsObject(vars.stash[tab][name].trueTimestamp) ? vars.stash[tab][name].trueTimestamp.Clone() : !Blank(check := iniTrue[tab][name "_timestamp"] ) ? check : sometimeago
-			trueprices := IsObject(vars.stash[tab][name].trueprices) ? vars.stash[tab][name].trueprices.Clone() : StrSplit(!Blank(check := iniTrue[tab][name]) ? check : "0, 0, 0, 0, 0", ",", A_Space, 5)
-			truestacks := IsObject(vars.stash[tab][name].truestacks) ? vars.stash[tab][name].truestacks.Clone() : StrSplit(!Blank(check := iniTrue[tab][name "_stack"]) ? check : "0, 0, 0, 0, 0", ",", A_Space, 5)
 			trend := IsObject(vars.stash[tab][name].trend) ? vars.stash[tab][name].trend.Clone() : StrSplit(!Blank(check := ini[tab0][name "_trend"]) ? check : "0, 0, 0, 0, 0, 0, 0", ",", A_Space)
 			vars.stash[tab][name] := {"coords": [xCoord, yCoord], "exchange": array1.4, "prices": prices, "source": ["ninja"], "trend": trend}
-			}
+		}
 
-			vars.stash[tab].itemCount := count ;//TODO: get count from file
-
-			If(IsTimeStampActual(trueTimestamp))
-			{
-				vars.stash.true_price["truepricestatus_" tab] := "Div prices actual" ; maybe change this from true price ?
-			}
-			Else
-			{
-				vars.stash.true_price["truepricestatus_" tab] := "Press 6 to update div prices"
-			}
-			vars.stash.true_price["truepricestatus_progress"] := "    "
-			}
+		vars.stash[tab].itemCount := count ;//TODO: get count from file
+		If(IsTimeStampActual(trueTimestamp))
+		{
+			vars.stash.true_price["truepricestatus_" tab] := "Div prices actual" ; maybe change this from true price ?
+		}
+		Else
+		{
+			vars.stash.true_price["truepricestatus_" tab] := "Press 6 to update div prices"
+		}
+		vars.stash.true_price["truepricestatus_progress"] := "    "
+		
 	}
 	vars.stash.currency1["chaos orb"].prices := [1, 1/vars.stash.exalt, 1/vars.stash.divine]
 	If (refresh = "bulk_trade") && WinExist("ahk_id " vars.hwnd.stash.main)
@@ -275,7 +257,7 @@ Stash_(mode, test := 0)
 			}
 			Else
 			{
-				price := Round(val.prices[lType], (val.prices[lType] > 1000) ? 0 : (val.prices[lType] > 100) ? 1 : 2)
+				price := Round(val.prices[lType], (val.prices[lType] > 1000) ? 0 : (val.prices[lType] > 10) ? 1 : 2), trade := val.source.2[lType]
 				exception1 := LLK_PatternMatch(item, "", ["potent", "powerful", "prime"]) ? 1 : 0, exception2 := LLK_PatternMatch(item, "", ["powerful", "prime"]) ? 1 : 0
 				Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Right c" colors[trade ? 3 : 1] " x" val.coords.1 " y" val.coords.2 + (exception1 ? vars.client.h * (1/12) : dBox) - settings.stash.fHeight2
 				. " w" (exception2 ? vars.client.h * (1/12) : dBox) . (hidden ? " Hidden" : ""), % (test ? A_Index : (lType = 4) ? val.trend[val.trend.MaxIndex()] : price) " "
@@ -285,10 +267,6 @@ Stash_(mode, test := 0)
 				{
 					ControlGetPos, xAnchor, yAnchor, wAnchor, hAnchor,, ahk_id %hwnd%
 					xAnchor += wAnchor, Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val)
-				}
-				if(lType = 3)
-				{
-					val.prices[lType] := repairLater
 				}
 			}
 		}
@@ -572,7 +550,6 @@ Stash_Close()
 	local
 	global vars, settings
 
-	vars.stash.true_price.multi := 1
 	LLK_Overlay(vars.hwnd.stash.main, "destroy")
 	vars.stash.GUI := vars.stash.hover := vars.hwnd.stash.main := "", vars.settings.selected_tab := ""
 	If WinExist("ahk_id " vars.hwnd.settings.main) && (vars.settings.active = "stash-ninja")
@@ -630,17 +607,17 @@ Stash_Hotkeys()
 		}
 		If settings.stash.bulk_trade && InStr(hotkey, "RButton") && vars.stash[vars.stash.active][vars.stash.hover].prices.1
 		{
-			item := vars.stash[vars.stash.active][vars.stash.hover]
-			if(!IsTimeStampActual(item.trueTimestamp))
-			{
-				LLK_ToolTip(LangTrans("stash_update"), 10000,,, "stashprices", "lime")
-				item.itemname := vars.stash.hover
-				GetTruePrice(item)
-				vars.tooltip[vars.hwnd["tooltipstashprices"]] := A_TickCount
-			}
+			;item := vars.stash[vars.stash.active][vars.stash.hover]
+			; if(!IsTimeStampActual(item.trueTimestamp)) ;// do I want to upde price when it's not from trade ?
+			; {
+			; 	LLK_ToolTip(LangTrans("stash_update"), 10000,,, "stashprices", "lime")
+			; 	item.itemname := vars.stash.hover
+			; 	GetTruePrice(item)
+			; 	vars.tooltip[vars.hwnd["tooltipstashprices"]] := A_TickCount
+			; }
 			Stash_PricePicker()
 		}
-		LLK_Overlay(vars.hwnd.stash.main, "hide"), vars.stash.GUI := 0, vars.stash.enter := 1, 	vars.stash.true_price.multi := 1
+		LLK_Overlay(vars.hwnd.stash.main, "hide"), vars.stash.GUI := 0, vars.stash.enter := 1
 		While vars.stash.enter
 			Sleep 1
 		LLK_Overlay(vars.hwnd.stash.main, "show")
@@ -919,16 +896,6 @@ Stash_PriceHistory(gui_name, x, y, h, wSlice, data, ByRef min_max)
 	Return xControl + wControl
 }
 
-IsTimeStampActual(pastTimestamp, laterTimestamp := -1 , lessThanHours := 4 )
-{
-	if(laterTimestamp = -1)
-		laterTimestamp := % A_Now
-	EnvSub, laterTimestamp, pastTimestamp, Hours
-	if(laterTimestamp <= lessThanHours && !Blank(pastTimestamp) && !Blank(laterTimestamp))
-		Return 1
-	Return 0
-}
-
 Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, currency := 0)
 {
 	local
@@ -941,9 +908,6 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, currency := 0
 	if(Blank(item) || Blank(val))
 		Return
 
-	available := vars.stash.available, exalt := settings.stash.show_exalt, currencies := ["c", "e", "d"], currencies_verbose := ["chaos", "exalted", "divine"], lines := 0, tab := vars.stash.active
-	trend_data := vars.stash[tab][item].trend.Clone(), margins := StrSplit(settings.stash.margins, ",", A_Space), bulk_sizes := []
-	margin := settings.stash[tab].margin := LLK_HasVal(margins, settings.stash[tab].margin) ? settings.stash[tab].margin : margins.1, margin := margin ? Round(margin / 100, 2) : margin
 	Gui, %GUI_name%: Font, % "s" settings.stash.fSize
 	If !trend ; nie trend więc price picking okienko z cenami do wyboru
 	{
@@ -1243,7 +1207,6 @@ Stash_PricePicker(cHWND := "")
 			SendInput, ^{a}
 			Sleep, 50
 			SendInput, ^{v}{Enter}
-			vars.stash.true_price.multi := 1
 			Return
 		}
 		Else If (SubStr(check, 1, 4) = "bulk")
@@ -1301,7 +1264,17 @@ Stash_PricePicker(cHWND := "")
 			}
 			last_currency := currency
 		}
-		If(Instr(item, "tft_All"))
+	}
+	Else
+	{
+		If !InStr(Clipboard, LangTrans("items_stack"))
+			available := max_stack := -1
+		Else available := SubStr(Clipboard, InStr(Clipboard, LangTrans("items_stack")) + StrLen(LangTrans("items_stack")) + 1),	max_stack := SubStr(available, InStr(available, "/") + 1)
+			, max_stack := SubStr(max_stack, 1, InStr(max_stack, "`r") - 1), available := SubStr(available, 1, InStr(available, "/") - 1)
+	}
+	KeyWait, RButton
+
+	If(Instr(item, "tft_All"))
 	{
 		if(Blank(settings.general.character))
 		{
@@ -1362,15 +1335,7 @@ Stash_PricePicker(cHWND := "")
 		}
 		Return
 	}
-	}
-	Else
-	{
-		If !InStr(Clipboard, LangTrans("items_stack"))
-			available := max_stack := -1
-		Else available := SubStr(Clipboard, InStr(Clipboard, LangTrans("items_stack")) + StrLen(LangTrans("items_stack")) + 1),	max_stack := SubStr(available, InStr(available, "/") + 1)
-			, max_stack := SubStr(max_stack, 1, InStr(max_stack, "`r") - 1), available := SubStr(available, 1, InStr(available, "/") - 1)
-	}
-	KeyWait, RButton
+
 	toggle := !toggle, GUI_name := "stash_pricepicker" toggle, note := vars.stash.note := vars.stash.note ? SubStr(Clipboard, vars.stash.note + 7) : ""
 
 	For key, val in {"available": available, "max_stack": max_stack}
