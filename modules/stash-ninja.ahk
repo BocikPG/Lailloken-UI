@@ -497,120 +497,6 @@ Stash_PriceHistory(gui_name, x, y, h, wSlice, data, ByRef min_max)
 	Return xControl + wControl
 }
 
-Stash_PriceIndex(cHWND, currency := "")
-{
-	local
-	global vars, settings
-	static toggle := 0, xMain, yMain, wMain, last_currency
-
-	If (cHWND = "destroy")
-	{
-		LLK_Overlay(vars.hwnd.stash_index.main, "destroy"), vars.hwnd.stash_index.main := ""
-		Return
-	}
-
-	currencies := ["chaos", "exalt", "divine"], tab := vars.stash.active, width := settings.stash.fWidth2 * 5, item := vars.stash.hover
-	If currency && !LLK_HasVal(currencies, currency)
-	{
-		KeyWait, LButton
-		KeyWait, RButton
-		check := LLK_HasVal(vars.hwnd.stash_index, cHWND), control := SubStr(check, InStr(check, "_") + 1)
-		If InStr(check, "indexpick_")
-		{
-			prev_selection := vars.stash[tab][item].prices[(currency := LLK_HasVal(currencies, last_currency))]
-			GuiControl, +cWhite, % vars.hwnd.stash_index["indexpick_" prev_selection]
-			GuiControl, movedraw, % vars.hwnd.stash_index["indexpick_" prev_selection]
-			vars.stash[tab][item].prices[currency] := control
-			object := vars.stash[tab][item].source.3[currency], iPrice := LLK_HasVal(object.prices, control,,,, 1, 1)
-			listed_bulk0 := listed_bulk := object.prices[iPrice].3, listed_price0 := listed_price := object.prices[iPrice].2
-			object.bulk := [listed_bulk, listed_price]
-			While settings.stash.min_trade && (currency = 1 && listed_price0 < settings.stash.min_trade) && (listed_price0 + listed_price <= 1200) && (listed_bulk0 + listed_bulk <= vars.stash.available0)
-				listed_bulk0 += listed_bulk, listed_price0 += listed_price
-			listed_bulk := listed_bulk0, listed_price := listed_price0
-			GuiControl, +cLime, % cHWND
-			GuiControl, movedraw, % cHWND
-			GuiControl,, % vars.hwnd.stash_picker["bulksize_" currency], % listed_bulk
-			GuiControl,, % vars.hwnd.stash_picker["bulkprice_" currency], % LLK_TrimDecimals(listed_price)
-			Return
-		}
-		Else If (check = "stock")
-			IniWrite, % (settings.stash.index_stock := !settings.stash.index_stock), ini\stash-ninja.ini, settings, show stock in index
-	}
-	Else
-	{
-		WinGetPos, xMain, yMain, wMain,, % "ahk_id " vars.hwnd.stash_picker.main
-		last_currency := currency ? currency : last_currency
-	}
-
-	array := vars.stash[tab][item].source.3[(pCheck := LLK_HasVal(currencies, last_currency))]
-	max := array.listings.2, max_stock := array.stocks.max.1, max_stock2 := array.stocks.max.2
-	toggle := !toggle, GUI_name := "stash_priceindex" toggle, vals := [LangTrans("global_price")], counts := [array.listings.1]
-	Gui, %GUI_name%: New, % "-Caption -DPIScale +LastFound +AlwaysOnTop +ToolWindow +Border +E0x02000000 +E0x00080000 HWNDhwnd_index"
-	Gui, %GUI_name%: Font, % "s" settings.stash.fSize - 2 " cWhite", % vars.system.font
-	Gui, %GUI_name%: Color, Black
-	Gui, %GUI_name%: Margin, -1, -1
-	hwnd_old := vars.hwnd.stash_index.main, vars.hwnd.stash_index := {"main": hwnd_index}
-	LLK_PanelDimensions([array.listings.1 " " LangTrans("stash_open") "  >"], settings.stash.fSize - 2, wListing_header, hListing_header)
-	LLK_PanelDimensions([array.stocks.max.1], settings.stash.fSize - 2, wStock, hStock), LLK_PanelDimensions([array.stocks.max.2], settings.stash.fSize - 2, wStock2, hStock2)
-	LLK_PanelDimensions([LangTrans("stash_stock"), LangTrans("global_all"), LangTrans("stash_solo")], settings.stash.fSize - 2, wStock3, hStock3)
-	LLK_PanelDimensions([">"], settings.stash.fSize - 2, wToggle, hToggle), wStock3 := Max(wStock, wStock2, wStock3)
-	cBars := settings.stash.cBars.1, cBars2 := settings.stash.cBars.2, cBars3 := settings.stash.cBars.3
-	For index, val in array.prices
-		If (index <= settings.stash.indexes)
-			counts.Push(val.0), vals.Push(Round(val.1, array.decimals))
-
-	LLK_PanelDimensions(vals, settings.stash.fSize - 2, wPrice, hPrice), LLK_PanelDimensions(counts, settings.stash.fSize - 2, wListings, hListings), prev := ""
-	For index, val in array.prices
-	{
-		If !added
-		{
-			Gui, %GUI_name%: Add, Text, % "x-1 y-1 Section Border Center w" wPrice, % LangTrans("global_price")
-			Gui, %GUI_name%: Add, Text, % "ys x+" wListing_header - wToggle - 1 " Border BackgroundTrans gStash_PriceIndex HWNDhwnd Center w" wToggle, % (settings.stash.index_stock ? "<" : ">")
-			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack c" cBars3, 100
-			Gui, %GUI_name%: Add, Text, % "ys x" wPrice - 2 " Border Left w" wListing_header, % " " array.listings.1 " " LangTrans("stash_open") "  >"
-			vars.hwnd.stash_index.stock := hwnd
-			If settings.stash.index_stock
-			{
-				Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center w" wStock3*2 - 1, % LangTrans("stash_stock")
-				Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack c" cBars3, 100
-			}
-		}
-		pListings := (vars.stash[tab][item].prices[pCheck] = val.1)
-		Gui, %GUI_name%: Add, Text, % "xs Section BackgroundTrans gStash_PriceIndex HWNDhwnd Border Right w" wPrice . (pListings ? " cLime" : ""), % Round(val.1, array.decimals) " "
-		Gui, %GUI_name%: Font, norm
-		If (array.stats.2 = val.1)
-			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled cBlack BackgroundYellow", 100
-		Gui, %GUI_name%: Add, Text, % "ys BackgroundTrans Right w" wListings, % val.0 " "
-		Gui, %GUI_name%: Add, Text, % "xp yp Border HWNDhwnd2 BackgroundTrans w" wListing_header, % ""
-		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled HWNDhwnd2 BackgroundBlack Range0-" max " c" cBars, % val.0
-		vars.hwnd.stash_index["indexpick_" val.1] := hwnd, added := 1
-		If settings.stash.index_stock
-		{
-			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Right w" wStock3, % array.stocks[val.1].1 " "
-			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack Range0-" max_stock " c" (array.stocks[val.1].1 = max_stock ? cBars2 : cBars), % array.stocks[val.1].1
-			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Right w" wStock3, % array.stocks[val.1].2 " "
-			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack Range0-" max_stock2 " c" (array.stocks[val.1].2 = max_stock2 ? cBars2 : cBars), % array.stocks[val.1].2
-		}
-		If (index = settings.stash.indexes)
-			Break
-	}
-
-	ago := (A_TickCount - vars.stash[tab][item].source.2[pCheck])//1000
-	ControlGetPos, xLast, yLast, wLast, hLast,, ahk_id %hwnd2%
-	Gui, %GUI_name%: Add, Text, % "xs Section Border Center w" xLast + wLast, % "t+" FormatSeconds(ago, 0)
-	If settings.stash.index_stock
-	{
-		Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center w" wStock3, % LangTrans("global_all")
-		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack c" cBars3, % 100
-		Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center w" wStock3, % LangTrans("stash_solo")
-		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack c" cBars3, % 100
-	}
-	Gui, %GUI_name%: Show, % "NA x10000 y10000"
-	WinGetPos,,,, height, ahk_id %hwnd_index%
-	Gui, %GUI_name%: Show, % "x" xMain + wMain " y" (yMain + height >= vars.monitor.y + vars.monitor.h ? vars.monitor.y + vars.monitor.h - height : yMain)
-	LLK_Overlay(hwnd_index, "show", 0, GUI_name), LLK_Overlay(hwnd_old, "destroy")
-}
-
 Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, currency := 0)
 {
 	local
@@ -757,6 +643,120 @@ Stash_PriceInfo(GUI_name, xAnchor, yAnchor, item, val, trend := 1, currency := 0
 			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cMaroon", 100
 		}
 	}
+}
+
+Stash_PriceIndex(cHWND, currency := "")
+{
+	local
+	global vars, settings
+	static toggle := 0, xMain, yMain, wMain, last_currency
+
+	If (cHWND = "destroy")
+	{
+		LLK_Overlay(vars.hwnd.stash_index.main, "destroy"), vars.hwnd.stash_index.main := ""
+		Return
+	}
+
+	currencies := ["chaos", "exalt", "divine"], tab := vars.stash.active, width := settings.stash.fWidth2 * 5, item := vars.stash.hover
+	If currency && !LLK_HasVal(currencies, currency)
+	{
+		KeyWait, LButton
+		KeyWait, RButton
+		check := LLK_HasVal(vars.hwnd.stash_index, cHWND), control := SubStr(check, InStr(check, "_") + 1)
+		If InStr(check, "indexpick_")
+		{
+			prev_selection := vars.stash[tab][item].prices[(currency := LLK_HasVal(currencies, last_currency))]
+			GuiControl, +cWhite, % vars.hwnd.stash_index["indexpick_" prev_selection]
+			GuiControl, movedraw, % vars.hwnd.stash_index["indexpick_" prev_selection]
+			vars.stash[tab][item].prices[currency] := control
+			object := vars.stash[tab][item].source.3[currency], iPrice := LLK_HasVal(object.prices, control,,,, 1, 1)
+			listed_bulk0 := listed_bulk := object.prices[iPrice].3, listed_price0 := listed_price := object.prices[iPrice].2
+			object.bulk := [listed_bulk, listed_price]
+			While settings.stash.min_trade && (currency = 1 && listed_price0 < settings.stash.min_trade) && (listed_price0 + listed_price <= 1200) && (listed_bulk0 + listed_bulk <= vars.stash.available0)
+				listed_bulk0 += listed_bulk, listed_price0 += listed_price
+			listed_bulk := listed_bulk0, listed_price := listed_price0
+			GuiControl, +cLime, % cHWND
+			GuiControl, movedraw, % cHWND
+			GuiControl,, % vars.hwnd.stash_picker["bulksize_" currency], % listed_bulk
+			GuiControl,, % vars.hwnd.stash_picker["bulkprice_" currency], % LLK_TrimDecimals(listed_price)
+			Return
+		}
+		Else If (check = "stock")
+			IniWrite, % (settings.stash.index_stock := !settings.stash.index_stock), ini\stash-ninja.ini, settings, show stock in index
+	}
+	Else
+	{
+		WinGetPos, xMain, yMain, wMain,, % "ahk_id " vars.hwnd.stash_picker.main
+		last_currency := currency ? currency : last_currency
+	}
+
+	array := vars.stash[tab][item].source.3[(pCheck := LLK_HasVal(currencies, last_currency))]
+	max := array.listings.2, max_stock := array.stocks.max.1, max_stock2 := array.stocks.max.2
+	toggle := !toggle, GUI_name := "stash_priceindex" toggle, vals := [LangTrans("global_price")], counts := [array.listings.1]
+	Gui, %GUI_name%: New, % "-Caption -DPIScale +LastFound +AlwaysOnTop +ToolWindow +Border +E0x02000000 +E0x00080000 HWNDhwnd_index"
+	Gui, %GUI_name%: Font, % "s" settings.stash.fSize - 2 " cWhite", % vars.system.font
+	Gui, %GUI_name%: Color, Black
+	Gui, %GUI_name%: Margin, -1, -1
+	hwnd_old := vars.hwnd.stash_index.main, vars.hwnd.stash_index := {"main": hwnd_index}
+	LLK_PanelDimensions([array.listings.1 " " LangTrans("stash_open") "  >"], settings.stash.fSize - 2, wListing_header, hListing_header)
+	LLK_PanelDimensions([array.stocks.max.1], settings.stash.fSize - 2, wStock, hStock), LLK_PanelDimensions([array.stocks.max.2], settings.stash.fSize - 2, wStock2, hStock2)
+	LLK_PanelDimensions([LangTrans("stash_stock"), LangTrans("global_all"), LangTrans("stash_solo")], settings.stash.fSize - 2, wStock3, hStock3)
+	LLK_PanelDimensions([">"], settings.stash.fSize - 2, wToggle, hToggle), wStock3 := Max(wStock, wStock2, wStock3)
+	cBars := settings.stash.cBars.1, cBars2 := settings.stash.cBars.2, cBars3 := settings.stash.cBars.3
+	For index, val in array.prices
+		If (index <= settings.stash.indexes)
+			counts.Push(val.0), vals.Push(Round(val.1, array.decimals))
+
+	LLK_PanelDimensions(vals, settings.stash.fSize - 2, wPrice, hPrice), LLK_PanelDimensions(counts, settings.stash.fSize - 2, wListings, hListings), prev := ""
+	For index, val in array.prices
+	{
+		If !added
+		{
+			Gui, %GUI_name%: Add, Text, % "x-1 y-1 Section Border Center w" wPrice, % LangTrans("global_price")
+			Gui, %GUI_name%: Add, Text, % "ys x+" wListing_header - wToggle - 1 " Border BackgroundTrans gStash_PriceIndex HWNDhwnd Center w" wToggle, % (settings.stash.index_stock ? "<" : ">")
+			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack c" cBars3, 100
+			Gui, %GUI_name%: Add, Text, % "ys x" wPrice - 2 " Border Left w" wListing_header, % " " array.listings.1 " " LangTrans("stash_open") "  >"
+			vars.hwnd.stash_index.stock := hwnd
+			If settings.stash.index_stock
+			{
+				Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center w" wStock3*2 - 1, % LangTrans("stash_stock")
+				Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack c" cBars3, 100
+			}
+		}
+		pListings := (vars.stash[tab][item].prices[pCheck] = val.1)
+		Gui, %GUI_name%: Add, Text, % "xs Section BackgroundTrans gStash_PriceIndex HWNDhwnd Border Right w" wPrice . (pListings ? " cLime" : ""), % Round(val.1, array.decimals) " "
+		Gui, %GUI_name%: Font, norm
+		If (array.stats.2 = val.1)
+			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled cBlack BackgroundYellow", 100
+		Gui, %GUI_name%: Add, Text, % "ys BackgroundTrans Right w" wListings, % val.0 " "
+		Gui, %GUI_name%: Add, Text, % "xp yp Border HWNDhwnd2 BackgroundTrans w" wListing_header, % ""
+		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled HWNDhwnd2 BackgroundBlack Range0-" max " c" cBars, % val.0
+		vars.hwnd.stash_index["indexpick_" val.1] := hwnd, added := 1
+		If settings.stash.index_stock
+		{
+			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Right w" wStock3, % array.stocks[val.1].1 " "
+			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack Range0-" max_stock " c" (array.stocks[val.1].1 = max_stock ? cBars2 : cBars), % array.stocks[val.1].1
+			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Right w" wStock3, % array.stocks[val.1].2 " "
+			Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack Range0-" max_stock2 " c" (array.stocks[val.1].2 = max_stock2 ? cBars2 : cBars), % array.stocks[val.1].2
+		}
+		If (index = settings.stash.indexes)
+			Break
+	}
+
+	ago := (A_TickCount - vars.stash[tab][item].source.2[pCheck])//1000
+	ControlGetPos, xLast, yLast, wLast, hLast,, ahk_id %hwnd2%
+	Gui, %GUI_name%: Add, Text, % "xs Section Border Center w" xLast + wLast, % "t+" FormatSeconds(ago, 0)
+	If settings.stash.index_stock
+	{
+		Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center w" wStock3, % LangTrans("global_all")
+		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack c" cBars3, % 100
+		Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center w" wStock3, % LangTrans("stash_solo")
+		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack c" cBars3, % 100
+	}
+	Gui, %GUI_name%: Show, % "NA x10000 y10000"
+	WinGetPos,,,, height, ahk_id %hwnd_index%
+	Gui, %GUI_name%: Show, % "x" xMain + wMain " y" (yMain + height >= vars.monitor.y + vars.monitor.h ? vars.monitor.y + vars.monitor.h - height : yMain)
+	LLK_Overlay(hwnd_index, "show", 0, GUI_name), LLK_Overlay(hwnd_old, "destroy")
 }
 
 Stash_PricePicker(cHWND := "")
