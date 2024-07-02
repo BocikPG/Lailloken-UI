@@ -87,9 +87,11 @@
 				tab := InStr(tab, "currency") ? "currency" : tab, vars.stash[tab].timestamp := ini[tab].timestamp, vars.stash[tab].league := ini[tab].league
 	
 	}
+	autofetchlist := Json.Load(LLK_FileRead("data\global\[stash-ninja] autofetchlist.json"))
 	tabs := vars.stash.tabs
 	For tab, array in json_data
 	{
+		vars.stash[tab].autofetchlist := autofetchlist[tab]
 		gap := settings.stash[tab].gap, vars.stash[tab].box := dBox := vars.client.h//tabs[tab].1, in_folder := settings.stash[tab].in_folder
 		For index, array1 in array
 		{
@@ -115,16 +117,16 @@
 			vars.stash[tab][name] := {"coords": [xCoord, yCoord], "exchange": array1.4, "prices": prices, "source": ["ninja"], "trend": trend}
 		}
 
-		vars.stash[tab].itemCount := count ;//TODO: get count from file
-		If(IsTimeStampActual(trueTimestamp))
-		{
-			vars.stash.true_price["truepricestatus_" tab] := "Div prices actual" ; maybe change this from true price ?
-		}
-		Else
-		{
-			vars.stash.true_price["truepricestatus_" tab] := "Press 6 to update div prices"
-		}
-		vars.stash.true_price["truepricestatus_progress"] := "    "
+		; vars.stash[tab].itemCount := count ;//TODO: get count from file
+		; If(IsTimeStampActual(trueTimestamp))
+		; {
+			; vars.stash.true_price["truepricestatus_" tab] := "Div prices actual" ; maybe change this from true price ?
+		; }
+		; Else
+		; {
+			; vars.stash.true_price["truepricestatus_" tab] := "Press 6 to update div prices"
+		; }
+		; vars.stash.true_price["truepricestatus_progress"] := "    "
 		
 	}
 	vars.stash.currency1["chaos orb"].prices := [1, 1/vars.stash.exalt, 1/vars.stash.divine]
@@ -201,6 +203,8 @@ Stash_(mode, test := 0)
 				Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border x" val.coords.1 " y" val.coords.2 " w" dButtons * 4.5 " h" dButtons . (hidden ? " Hidden" : "")
 				Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" (button = tab ? colors.2 : "Black") . (hidden ? " Hidden" : ""), 0
 			}
+			Else if Instr(item, "autofetchlist")
+				Continue
 			Else If InStr(item, "tft_")
 			{
 				if(InStr(item, "_price"))
@@ -215,7 +219,7 @@ Stash_(mode, test := 0)
 				{
 					Gui, %GUI_name%: Font, % "s8 cBlack", % vars.system.font
 					Gui, %GUI_name%: Add, Text, % "BackgroundTrans Border Center x" val.coords.1 " y" val.coords.2 " w"  dButtons * 1.5 " h" dButtons * 1.5 " c" colors.1 . (hidden ? " Hidden" : ""), TFT SELL ALL GREEN
-					Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd Background" colors.2 . (hidden ? " Hidden" : ""), 0
+					Gui, %GUI_name%: Add, Progress, % "Disabled xp yp wp hp HWNDhwnd BackgroundLime" . (hidden ? " Hidden" : ""), 0
 				
 					Gui, %GUI_name%: Font, % "s" settings.stash.fSize2 " cWhite", % vars.system.font
 				}
@@ -239,7 +243,7 @@ Stash_(mode, test := 0)
 					Else
 					{
 						if(val.isBulkPriced)
-							color := colors.2
+							color := "Lime"
 						Else
 							color := "Yellow"
 					}
@@ -405,68 +409,29 @@ Get_Better_Offer()
 
 		isBulkPriced := 1
 		val.priceSum := 0
+
+		; prices := val.source.3["divine"].prices
+
+		; listings[currency].prices[price_norm]
+
+		;//ago := (A_TickCount - vars.stash[tab][item].source.2[pCheck])//1000
+		;//TODO: try to check time ???????????????????????????
+		
 		For item, comp in val.components
 		{
-			if(!IsTimeStampActual(vars.stash["fragments"][comp].trueTimestamp) || vars.stash["fragments"][item].trueprices[2] = 0)
+			if(vars.stash["fragments"][comp].source.1 = "trade")
 			{
-				isBulkPriced := 0
-				val.priceSum += vars.stash["fragments"][comp].prices[3]
+				val.priceSum += vars.stash["fragments"][comp].source.3[3].stats.2
 			}
 			Else
 			{
-				val.priceSum += vars.stash["fragments"][comp].trueprices[2]
+				isBulkPriced := 0
+				val.priceSum += vars.stash["fragments"][comp].prices[3]
 			}
 		}
 		val.isBulkPriced := isBulkPriced
 
 	}
-}
-
-
-Get_Await_Time(IP_limit, IP_limit_status) ;//TODO: maybe hook up to his system
-{
-	max_limits := StrSplit(IP_limit, ",")
-	curr_limits := StrSplit(IP_limit_status, ",")
-	
-	time := 300000
-	Loop, 3
-	{
-		values := StrSplit(max_limits[4 - A_Index], ":")
-
-		a := curr_limits[4 - A_Index]
-		Loop, parse, a, : 
-		{
-			if(A_LoopField >= values[1] * 0.7)
-			{
-				;OutputDebug, chilled
-				time := values[2] / 5 * 1000 + 2000 
-				Return time
-			}
-			Else
-				time := values[2] / values[1] * 1000
-			Break
-		}
-	}
-	;OutputDebug, % time " to sleep"
-	Return time
-}
-
-ItemAt(array, index) ;//redundent?
-{
-	If (Blank(array) || Blank(index))
-		Return
-	i := 1
-	For key, val in array
-	{
-		if(i = index)
-		{
-			val.itemname := key
-			Return val
-		}
-			
-		i++
-	}
-	Return
 }
 
 Stash_FetchRealPrices(cHWND := "") ;//use his sytem
@@ -477,10 +442,11 @@ Stash_FetchRealPrices(cHWND := "") ;//use his sytem
 	if(vars.stash.true_price.inProgress = 1)
 		Return
 
+	vars.stash.true_price["truepricestatus_" vars.stash.active] := "working..."
 	vars.stash.true_price.activeStash := vars.stash.active
-	vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "working..."
 	vars.stash.true_price.inProgress := 1
 	vars.stash.true_price.progressCount := 0
+	vars.stash.true_price.repeatCounter := 0
 	
 
 	vars.stash.true_price.truePriceIndexer := 1
@@ -501,34 +467,50 @@ Stash_FetchRealPrices(cHWND := "") ;//use his sytem
 			Return
 		}
 
-		item := ItemAt(vars.stash[vars.stash.true_price.activeStash], vars.stash.true_price.truePriceIndexer)
+		itemname := vars.stash[vars.stash.true_price.activeStash].autofetchlist[vars.stash.true_price.truePriceIndexer]
+		OutputDebug, % itemname
+		item := vars.stash[vars.stash.true_price.activeStash][itemname]
 
-		result := GetTruePrice(item, 1)
+		OutputDebug, % Blank(item) ? itemname " is bad replace" : itemname
 
-		;OutputDebug, % result
-
-		if(result = 1)
-			Goto, ForLoopWithTimer
-		else if( result = 3)
-			Return
-		else if(result = 5)
+		If IsObject(item)
+			ID := item.exchange
+		If ID
+			Try trade_check := HTTPtoVar(ID, "exchange", "divine")
+		If !IsObject(trade_check)
 		{
-			if(vars.stash.true_price.activeStash = "fragments")
-				Get_Better_Offer()
-			vars.stash.true_price["truepricestatus_progress"] := "END"
-			vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := "network error"
-			vars.stash.true_price.inProgress := 0
-			Stash_("refresh")
+			LLK_ToolTip(LangTrans("global_fail"),,,,, "red")
+			Return
 		}
+		Else (tradecheck_status := Stash_PriceFetchTrade(trade_check, itemname, vars.stash.true_price.activeStash)), index_check := item.source.2["divine"]
 
+
+		If settings.stash.rate_limits.timestamp || (settings.stash.retry > A_Now)
+		{
+			nextin := Stash_RateTick(1)
+		}
+		
+		If (tradecheck_status = -1) ;//if not status 200
+		{
+			if(vars.stash.true_price.repeatCounter >= 2)
+			{
+				Goto, JustGoToNext
+			}
+			OutputDebug, % "repeat"
+			vars.stash.true_price.repeatCounter++
+			SetTimer, ForLoopWithTimer, % nextin
+			Return
+		}
 
 		JustGoToNext:
 		;OutputDebug, % vars.stash[vars.stash.true_price.activeStash].Count()
-			if(vars.stash.true_price.truePriceIndexer + 1 <= vars.stash[vars.stash.true_price.activeStash].Count())
+			if(vars.stash.true_price.truePriceIndexer + 1 <=  vars.stash[vars.stash.true_price.activeStash].autofetchlist.Count())
 			{
 				vars.stash.true_price.truePriceIndexer++
-				time := -1 * Get_Await_Time(vars.stash.true_price.IP_limit, vars.stash.true_price.IP_limit_status)
-				SetTimer, ForLoopWithTimer, % time
+				vars.stash.true_price["truepricestatus_" vars.stash.true_price.activeStash] := itemname " fetched"
+				vars.stash.true_price["truepricestatus_progress"] := vars.stash.true_price.truePriceIndexer - 1 "/" vars.stash[vars.stash.true_price.activeStash].autofetchlist.Count()
+				Stash_("refresh")
+				SetTimer, ForLoopWithTimer, % nextin
 			}
 			Else
 			{
@@ -754,12 +736,16 @@ Stash_PriceFetch(tab)
 	Return 1
 }
 
-Stash_PriceFetchTrade(array)
+Stash_PriceFetchTrade(array, item := "", tab := "")
 {
 	local
 	global vars, settings
 
-	item := vars.stash.hover, tab := vars.stash.active, currencies := ["chaos", "exalted", "divine"]
+	if(Blank(item))
+		item := vars.stash.hover
+	if(Blank(tab))
+		tab := vars.stash.active
+	currencies := ["chaos", "exalted", "divine"]
 	For rKey, rVal in array.2
 	{
 		If (A_Index = 1)
@@ -866,6 +852,12 @@ Stash_PriceFetchTrade(array)
 		vars.stash[tab][item].prices[pCheck] := average.2
 		vars.stash[tab][item].source.3[pCheck] := listings[currency].Clone()
 	}
+
+	if(vars.stash.active = "fragments")
+	{
+		Get_Better_Offer()
+	}
+
 	Return IsObject(average)
 }
 
@@ -1377,13 +1369,19 @@ Stash_RateTick(mode := 0)
 		limits := settings.stash.rate_limits.limits.Clone()
 	}
 	elapsed := (A_TickCount - settings.stash.rate_limits.timestamp)//1000
-	If settings.stash.retry
+	If settings.stash.retry ;//retry after control
 	{
 		If (settings.stash.retry >= A_Now)
 		{
 			retry := settings.stash.retry
 			EnvSub, retry, A_Now, seconds
 			GuiControl,, % vars.hwnd.stash_picker.retry, % retry
+
+			SetTimer, Stash_RateTick, % -1000
+
+			OutputDebug, % "banned"
+			
+			Return -1 * (retry * 1000 + 2000)
 		}
 		Else
 		{
@@ -1392,16 +1390,28 @@ Stash_RateTick(mode := 0)
 		}
 	}
 
-	If !settings.stash.retry
-		For key, array in settings.stash.rate_limits.limits
+	nextin := 3000
+
+	If !settings.stash.retry ;//ratelimits controls
+		For key, array in settings.stash.rate_limits.limits ;//key is punishment time array[1] = current, array[2] = max
 		{
 			tick := Ceil(key/Max(1, array.1)), limit := limits[key].1 - elapsed//tick, limit := (limit <= 0) ? "" : limit, limits[key].1 := limit
 			interval := !interval && limits[key].1 ? key*1000 : interval, interval := (tick && tick*1000 < interval) ? tick*1000 : interval, color := (limit >= limits[key].2 * 0.66) ? "Maroon" : (limit >= limits[key].2 * 0.33) ? "CC6600" : "Green"
+			
+			if(array.1 >= array.2 * 0.66)
+			{
+				nextin := key / 4 * 1000
+			}
+
 			GuiControl,, % vars.hwnd.stash_picker["ratelimit_" key], % limit
 			GuiControl, % "+c" color, % vars.hwnd.stash_picker["ratelimit_" key]
 		}
 	If interval || !Blank(retry)
 		SetTimer, Stash_RateTick, % !Blank(retry) ? -1000 : -interval
+
+	OutputDebug, % nextin
+
+	Return -1 * nextin
 }
 
 Stash_Selection(cHWND := "") ; GeForce Now
