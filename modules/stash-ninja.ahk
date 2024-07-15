@@ -117,16 +117,8 @@
 			vars.stash[tab][name] := {"coords": [xCoord, yCoord], "exchange": array1.4, "prices": prices, "source": ["ninja"], "trend": trend}
 		}
 
-		; vars.stash[tab].itemCount := count ;//TODO: get count from file
-		; If(IsTimeStampActual(trueTimestamp))
-		; {
-			; vars.stash.true_price["truepricestatus_" tab] := "Div prices actual" ; maybe change this from true price ?
-		; }
-		; Else
-		; {
-			; vars.stash.true_price["truepricestatus_" tab] := "Press 6 to update div prices"
-		; }
-		; vars.stash.true_price["truepricestatus_progress"] := "    "
+		vars.stash.true_price["truepricestatus_" tab] := "Press 6 to update div prices"
+		vars.stash.true_price["truepricestatus_progress"] := "    "
 		
 	}
 	vars.stash.currency1["chaos orb"].prices := [1, 1/vars.stash.exalt, 1/vars.stash.divine]
@@ -589,14 +581,6 @@ Stash_Hotkeys()
 		}
 		If settings.stash.bulk_trade && InStr(hotkey, "RButton") && vars.stash[vars.stash.active][vars.stash.hover].prices.1
 		{
-			;item := vars.stash[vars.stash.active][vars.stash.hover]
-			; if(!IsTimeStampActual(item.trueTimestamp)) ;// do I want to upde price when it's not from trade ?
-			; {
-			; 	LLK_ToolTip(LangTrans("stash_update"), 10000,,, "stashprices", "lime")
-			; 	item.itemname := vars.stash.hover
-			; 	GetTruePrice(item)
-			; 	vars.tooltip[vars.hwnd["tooltipstashprices"]] := A_TickCount
-			; }
 			Stash_PricePicker()
 		}
 		LLK_Overlay(vars.hwnd.stash.main, "hide"), vars.stash.GUI := 0, vars.stash.enter := 1
@@ -745,6 +729,10 @@ Stash_PriceFetchTrade(array, item := "", tab := "")
 		item := vars.stash.hover
 	if(Blank(tab))
 		tab := vars.stash.active
+
+	if(vars.stash.true_price.inProgress)
+		Return -1
+
 	currencies := ["chaos", "exalted", "divine"]
 	For rKey, rVal in array.2
 	{
