@@ -155,6 +155,8 @@ Hotkeys_ESC()
 	}
 	Else If WinExist("ahk_id " vars.hwnd.stash.main)
 		Stash_Close()
+	Else If vars.currency_counter.picked
+    	CurrencyCounter_Esc()
 	Else If WinExist("ahk_id " vars.hwnd.compat_test)
 	{
 		Gui, compat_test: Destroy
@@ -497,6 +499,16 @@ RButton::Sanctum_Relics("click")
 
 #If vars.hwnd.sanctum_relics.main
 *~SC038::Sanctum_Relics("trans")
+
+;── Currency Counter ──────────────────────────────────────────
+#If settings.features.currency_counter && (vars.general.wMouse = vars.hwnd.poe_client)
+~RButton::CurrencyCounter_HandleClick()
+~LButton::CurrencyCounter_HandleClick()
+; ── End Currency Counter ──────────────────────────────────────
+
+#If vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main)
+LButton::CurrencyCounter_Click(1)
+RButton::CurrencyCounter_Click(2)
 
 #If vars.hwnd.stash_picker.main && vars.general.cMouse && WinExist("ahk_id " vars.hwnd.stash_picker.main) && LLK_PatternMatch(LLK_HasVal(vars.hwnd.stash_picker, vars.general.cMouse), "", ["confirm_", "bulk"])
 WheelUp::Stash_PricePicker("+")

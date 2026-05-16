@@ -75,6 +75,7 @@
 		ms_screen-checks		=	"screen-checks"
 		ms_search-strings		=	"search-strings"
 		ms_stash-ninja			=	"stash-ninja"
+		ms_currency-counter		=	"currency counter"
 		ms_statlas			=	"statlas"		;## blend of "stats" and "atlas"
 		ms_stream-clients		=	"stream-clients"
 		ms_tldr-tooltips		=	"tldr-tooltips"

@@ -3569,8 +3569,8 @@ Settings_menu(section := "", mode := 0, NA := 1) ;mode parameter is used when ma
 	If !IsObject(vars.settings)
 	{
 		If !vars.poe_version
-			vars.settings := {"sections": ["general", "hotkeys", "screen-checks", "news", "updater", "donations", "actdecoder", "leveling tracker", "betrayal-info", "macros", "cheat-sheets", "clone-frames", "anoints", "filterspoon", "item-info", "map-info", "mapping tracker", "minor qol tools", "sanctum", "search-strings", "stash-ninja", "tldr-tooltips", "exchange"], "sections2": []}
-		Else vars.settings := {"sections": ["general", "hotkeys", "screen-checks", "news", "updater", "donations", "actdecoder", "leveling tracker", "macros", "cheat-sheets", "clone-frames", "anoints", "filterspoon", "item-info", "map-info", "mapping tracker", "minor qol tools", "search-strings", "stash-ninja", "sanctum", "statlas", "exchange"], "sections2": []}
+			vars.settings := {"sections": ["general", "hotkeys", "screen-checks", "news", "updater", "donations", "actdecoder", "leveling tracker", "betrayal-info", "macros", "cheat-sheets", "clone-frames", "currency-counter", "anoints", "filterspoon", "item-info", "map-info", "mapping tracker", "minor qol tools", "sanctum", "search-strings", "stash-ninja", "tldr-tooltips", "exchange"], "sections2": []}
+		Else vars.settings := {"sections": ["general", "hotkeys", "screen-checks", "news", "updater", "donations", "actdecoder", "leveling tracker", "macros", "cheat-sheets", "clone-frames", "currency-counter", "anoints", "filterspoon", "item-info", "map-info", "mapping tracker", "minor qol tools", "search-strings", "stash-ninja", "sanctum", "statlas", "exchange"], "sections2": []}
 		For index, val in vars.settings.sections
 			vars.settings.sections2.Push(Lang_Trans("ms_" val, (vars.poe_version && val = "sanctum") ? 2 : 1))
 	}
@@ -3615,7 +3615,7 @@ Settings_menu(section := "", mode := 0, NA := 1) ;mode parameter is used when ma
 	ControlGetPos, x, y,,,, ahk_id %hwnd%
 	vars.hwnd.settings.general := hwnd, vars.settings.xSelection := x, vars.settings.ySelection := y + vars.settings.line1, vars.settings.wSelection := section_width, vars.hwnd.settings["background_general"] := hwnd1
 	vars.settings.x_anchor := vars.settings.xSelection + vars.settings.wSelection + vars.settings.xMargin
-	feature_check := {"actdecoder": "actdecoder", "betrayal-info": "betrayal", "cheat-sheets": "cheatsheets", "leveling tracker": "leveltracker", "mapping tracker": "maptracker", "map-info": "mapinfo", "tldr-tooltips": "OCR", "sanctum": "sanctum", "stash-ninja": "stash", "filterspoon" : "lootfilter", "item-info": "iteminfo", "statlas": "statlas", "anoints": "anoints"}
+	feature_check := {"actdecoder": "actdecoder", "betrayal-info": "betrayal", "cheat-sheets": "cheatsheets", "currency-counter": "currency_counter", "leveling tracker": "leveltracker", "mapping tracker": "maptracker", "map-info": "mapinfo", "tldr-tooltips": "OCR", "sanctum": "sanctum", "stash-ninja": "stash", "filterspoon" : "lootfilter", "item-info": "iteminfo", "statlas": "statlas", "anoints": "anoints"}
 	feature_check2 := {"item-info": 1, "mapping tracker": 1, "map-info": 1, "statlas": 1}
 
 	If !vars.general.buggy_resolutions.HasKey(vars.client.h) && !vars.general.safe_mode
@@ -3722,6 +3722,8 @@ Settings_menu2(section, mode := 0) ;mode parameter used when manually calling th
 			Settings_cheatsheets()
 		Case "clone-frames":
 			Settings_cloneframes()
+		Case "currency-counter": 
+			Settings_currency_counter()
 		Case "donations":
 			Settings_donations()
 		Case "exchange":
@@ -5688,4 +5690,103 @@ Settings_WriteTest(cHWND := "")
 	MsgBox, 4096, % Lang_Trans("m_permission_header"), % status
 	GuiControl,, % HWND_bar, 0
 	running := 0
+}
+
+Settings_currency_counter()
+{
+    local
+    global vars, settings
+
+    GUI      := "settings_menu" vars.settings.GUI_toggle
+    x_anchor := vars.settings.x_anchor
+
+    ; Anchor – positions content column correctly
+    Gui, %GUI%: Add, Text, % "Section x" x_anchor " y" vars.settings.ySelection, % ""
+
+    ; Enable checkbox
+    Gui, %GUI%: Add, Checkbox, % "xs y+" vars.settings.spacing " Section gSettings_currency_counter2 HWNDhwnd Checked" settings.features.currency_counter
+        , % "Enable Currency Counter"
+    vars.hwnd.settings.currency_counter_enable := hwnd
+
+    If !settings.features.currency_counter
+    {
+        Gui, %GUI%: Add, Button, % "xp yp wp hp Hidden Default HWNDhwnd gSettings_currency_counter2", OK
+        Return
+    }
+
+    ; SSF checkbox
+    Gui, %GUI%: Add, Checkbox, % "xs Section gSettings_currency_counter2 HWNDhwnd y+" vars.settings.spacing " Checked" settings.currency_counter.ssf
+        , % "SSF (Solo Self-Found) mode"
+    vars.hwnd.settings.currency_counter_ssf := hwnd
+
+    ; Font size  –/N/+
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing, % "Font size:"
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/2 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "–"
+    vars.hwnd.settings.currency_counter_fminus := hwnd
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*3, % settings.currency_counter.fSize
+    vars.hwnd.settings.currency_counter_fsize := hwnd
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "+"
+    vars.hwnd.settings.currency_counter_fplus := hwnd
+
+    ; Read-only counter preview
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing, % "Counted so far:"
+    counters := vars.currency_counter.currencies
+    If IsObject(counters) && counters.Count()
+        For name, entry in counters
+            Gui, %GUI%: Add, Text, % "xs Section", % " " name ": " entry.count
+    Else
+        Gui, %GUI%: Add, Text, % "xs Section", % " (none yet)"
+
+    ; Reset button
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing " Border Center gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*6, % " Reset Counters "
+    vars.hwnd.settings.currency_counter_reset := hwnd
+
+}
+
+Settings_currency_counter2(cHWND)
+{
+    local
+    global vars, settings
+
+    If (cHWND = vars.hwnd.settings.currency_counter_enable)
+	{
+	    IniWrite, % (settings.features.currency_counter := LLK_ControlGet(cHWND))
+	        , % "ini" vars.poe_version "\config.ini", features, enable currency-counter
+	    If settings.features.currency_counter
+		{
+	        func := "CurrencyCounter_DrawBar"
+			%func%()
+		}
+	    Else
+	        LLK_Overlay(vars.hwnd.currency_counter.main, "destroy")
+	    Settings_menu("currency-counter")
+	    Return
+	}
+    If (cHWND = vars.hwnd.settings.currency_counter_ssf)
+    {
+        IniWrite, % (settings.currency_counter.ssf := LLK_ControlGet(cHWND))
+            , % "ini" vars.poe_version "\currency-counter.ini", settings, ssf mode
+        Settings_menu("currency-counter")
+        Return
+    }
+    If (cHWND = vars.hwnd.settings.currency_counter_fminus) || (cHWND = vars.hwnd.settings.currency_counter_fplus)
+    {
+        delta := (cHWND = vars.hwnd.settings.currency_counter_fplus) ? 1 : -1
+        settings.currency_counter.fSize := Max(6, settings.currency_counter.fSize + delta)
+        LLK_FontDimensions(settings.currency_counter.fSize, h, w)
+        settings.currency_counter.fHeight := h
+        settings.currency_counter.fWidth  := w
+        IniWrite, % settings.currency_counter.fSize, % "ini" vars.poe_version "\currency-counter.ini", settings, font-size
+        Settings_menu("currency-counter")
+        Return
+    }
+    If (cHWND = vars.hwnd.settings.currency_counter_reset)
+    {
+        vars.currency_counter.currencies := {}
+        IniWrite, % """" Json.Dump(vars.currency_counter.currencies) """", % "ini" vars.poe_version "\currency-counter.ini", % "session_" settings.currency_counter.active "_currencies", counters
+        LLK_Overlay(vars.hwnd.currency_counter.main, "destroy")
+        vars.hwnd.currency_counter := {"main": "", "drag": ""}
+        Settings_menu("currency-counter")
+        Return
+    }
 }
