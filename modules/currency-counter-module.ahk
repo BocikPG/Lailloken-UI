@@ -90,14 +90,29 @@ Init_currency_counter()
 
     LLK_FontDimensions(settings.currency_counter.fSize, height, width)
     settings.currency_counter.fHeight := height
-    settings.currency_counter.fWidth := width
+    settings.currency_counter.fWidth  := width
 
     ; Runtime state
-    vars.currency_counter := {"picked": 0, "name": "", "currencies": {}, "session_name": "", "session_img": ""}
+    vars.currency_counter := {"picked": 0, "name": "", "currencies": {}, "session_name": "", "session_img": "", "drop_on_shift_release": 0, "shift_timer": 0}
     vars.hwnd.currency_counter := {"main": "", "drag": ""}
 
-    If settings.currency_counter.active
+    if settings.currency_counter.active
+    {
+        if !CurrencyCounter_SessionExists(settings.currency_counter.active)
+            settings.currency_counter.active := ""   ; invalid session, will create new
+    }
+    if !settings.currency_counter.active
+    {
+        ; Create a new default session
+        CurrencyCounter_NewSession("Session " . A_Now, "")
+    }
+    else
+    {
+        ; Load the existing active session
         CurrencyCounter_LoadSession(settings.currency_counter.active)
+    }
+
+    CurrencyCounter_DrawBar()
 }
 
 ; ──────────────────────────────────────────────────────────────
@@ -109,19 +124,22 @@ CurrencyCounter_LoadSession(id)
     global vars, settings
 
     ini := IniBatchRead("ini" vars.poe_version "\currency-counter.ini")
-    raw_section := ini["session_" id "_currencies"]
+    if !ini.HasKey("session_" id)
+        return 0
 
+    raw_section := ini["session_" id "_currencies"]
     vars.currency_counter.currencies := {}
     vars.currency_counter.session_name := ini["session_" id]["name"]
-    vars.currency_counter.session_img := ini["session_" id]["img"]
+    vars.currency_counter.session_img  := ini["session_" id]["img"]
 
-    If IsObject(raw_section)
-        For currency_name, raw_val in raw_section
+    if IsObject(raw_section)
+        for currency_name, raw_val in raw_section
         {
             entry := Json.Load(raw_val)
-            If IsObject(entry)
+            if IsObject(entry)
                 vars.currency_counter.currencies[currency_name] := entry
         }
+    return 1
 }
 
 CurrencyCounter_NewSession(name, img := "")
@@ -142,22 +160,38 @@ CurrencyCounter_SetActive(id)
     local
     global vars, settings
 
-    settings.currency_counter.active := id
-    IniWrite, % id, % "ini" vars.poe_version "\currency-counter.ini", settings, active
-
-    vars.currency_counter.picked := 0
-    vars.currency_counter.name := ""
-
-    If id
-        CurrencyCounter_LoadSession(id)
-    Else
+    ; Clear active session (id empty)
+    if !id
     {
+        settings.currency_counter.active := ""
+        IniWrite, % "", % "ini" vars.poe_version "\currency-counter.ini", settings, active
+        vars.currency_counter.picked := 0
+        vars.currency_counter.name := ""
         vars.currency_counter.currencies := {}
         vars.currency_counter.session_name := ""
         vars.currency_counter.session_img := ""
+        CurrencyCounter_DrawBar()
+        return 1
     }
 
+    ; Try to load the session
+    if !CurrencyCounter_LoadSession(id)
+        return 0   ; session does not exist – do not change active session
+
+    ; Success: update active session
+    settings.currency_counter.active := id
+    IniWrite, % id, % "ini" vars.poe_version "\currency-counter.ini", settings, active
+    vars.currency_counter.picked := 0
+    vars.currency_counter.name := ""
     CurrencyCounter_DrawBar()
+    return 1
+}
+
+CurrencyCounter_SessionExists(id)
+{
+    global vars
+    IniRead, name, % "ini" vars.poe_version "\currency-counter.ini", session_%id%, name, % "NONEXISTENT"
+    return (name != "NONEXISTENT")
 }
 
 CurrencyCounter_SaveIndex()
@@ -170,11 +204,36 @@ CurrencyCounter_SaveIndex()
 CurrencyCounter_SaveCurrency(currency_name)
 {
     local
-    global vars, settings
+    global vars, settings, Json
+
+    ; Ensure JSON library is available
+    if !IsObject(Json)
+        Json := new JSON()
 
     id := settings.currency_counter.active
+    if !id
+        return
+    if !CurrencyCounter_SessionExists(id)
+        return
+    if !currency_name
+        return
+
     entry := vars.currency_counter.currencies[currency_name]
-    IniWrite, % """" Json.Dump(entry) """", % "ini" vars.poe_version "\currency-counter.ini", % "session_" id "_currencies", % currency_name
+    if !IsObject(entry)
+        return
+
+    ; Try JSON serialization
+    json_str := Json.Dump(entry)
+    
+    ; Fallback: manual JSON building if library fails
+    if !json_str
+    {
+        ; Ensure numeric values are stored without quotes
+        LLK_ToolTip("Currency Counter: JSON ERROR", 1.5,,, "red")
+        return
+    }
+
+    IniWrite, % """" json_str """", % "ini" vars.poe_version "\currency-counter.ini", % "session_" id "_currencies", % currency_name
 }
 
 CurrencyCounter_SetPrice(currency_name, price, price_currency)
@@ -183,7 +242,7 @@ CurrencyCounter_SetPrice(currency_name, price, price_currency)
     global vars, settings
 
     If !IsObject(vars.currency_counter.currencies[currency_name])
-        vars.currency_counter.currencies[currency_name] := {"count": 0, "price": "", "price_currency": "", "price_updated": ""}
+        vars.currency_counter.currencies[currency_name] := {"count": 0, "price": 0, "price_currency": 0, "price_updated": 0}
 
     vars.currency_counter.currencies[currency_name].price := price
     vars.currency_counter.currencies[currency_name].price_currency := price_currency
@@ -199,37 +258,67 @@ CurrencyCounter_HandleClick()
     local
     global vars, settings
 
-    if (A_ThisHotkey = "RButton")
+    if (A_ThisHotkey = "*RButton")
     {
-        ; Always pick a new currency (overwrites previous picked state)
-        Send, ^c
-        ClipWait, 0.5
+        if vars.currency_counter.picked
+        {
+            vars.currency_counter.picked := 0
+            vars.currency_counter.name := ""
+            CurrencyCounter_DrawBar()
+            return
+        }
+
+        Sleep, 50
+        Clipboard := ""
+        SendInput, ^c
+        ClipWait, 0.3
         if ErrorLevel
             return
+
         clip := Clipboard
         name := ""
         if RegExMatch(clip, "i)Rarity: Currency\r?\n(.+?)(\r?\n|$)", m)
             name := Trim(m1)
+
         if (name = "")
             return
+
         vars.currency_counter.picked := 1
         vars.currency_counter.name   := name
         CurrencyCounter_DrawBar()
     }
-    else if (A_ThisHotkey = "LButton")
+    else if (A_ThisHotkey = "*~LButton")
     {
-        ; Count only if a currency is currently picked
-        if !vars.currency_counter.picked
-            return
         name := vars.currency_counter.name
+        if !name
+            return   ; No currency picked – ignore
+
+        ; Ensure the currency entry exists
         if !IsObject(vars.currency_counter.currencies[name])
+        {
             vars.currency_counter.currencies[name] := {"count": 0, "price": "", "price_currency": "", "price_updated": ""}
+        }
+
+        ; Increment count
         vars.currency_counter.currencies[name].count += 1
         CurrencyCounter_SaveCurrency(name)
-        CurrencyCounter_DrawBar()
-        ; Clear picked state unless Shift is held (allows chaining)
-        if !GetKeyState("Shift", "P")
+
+        if GetKeyState("Shift", "P")
+        {
+            vars.currency_counter.drop_on_shift_release := 1
+            if !vars.currency_counter.shift_timer
+            {
+                vars.currency_counter.shift_timer := 1
+                SetTimer, CurrencyCounter_CheckShiftRelease, 50
+            }
+        }
+        else
+        {
             vars.currency_counter.picked := 0
+            vars.currency_counter.name := ""
+        }
+
+        CurrencyCounter_DrawBar()
     }
 }
 
@@ -242,6 +331,34 @@ CurrencyCounter_Esc()
     vars.currency_counter.name := ""
     CurrencyCounter_DrawBar()
 }
+
+CurrencyCounter_CheckShiftRelease()
+{
+    global vars
+    if !vars.currency_counter.drop_on_shift_release
+    {
+        ; No pending drop, stop timer
+        if vars.currency_counter.shift_timer
+        {
+            vars.currency_counter.shift_timer := 0
+            SetTimer, CurrencyCounter_CheckShiftRelease, Off
+        }
+        return
+    }
+    ; If Shift is physically up (not pressed)
+    if !GetKeyState("Shift", "P")
+    {
+        ; Drop the currency
+        vars.currency_counter.picked := 0
+        vars.currency_counter.name := ""
+        vars.currency_counter.drop_on_shift_release := 0
+        CurrencyCounter_DrawBar()
+        ; Stop timer
+        vars.currency_counter.shift_timer := 0
+        SetTimer, CurrencyCounter_CheckShiftRelease, Off
+    }
+}
+
 
 ; ──────────────────────────────────────────────────────────────
 ;  Click handler  –  wired via #If in hotkeys.ahk
