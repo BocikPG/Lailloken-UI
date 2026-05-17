@@ -90,16 +90,16 @@ Init_currency_counter()
 
     LLK_FontDimensions(settings.currency_counter.fSize, height, width)
     settings.currency_counter.fHeight := height
-    settings.currency_counter.fWidth  := width
+    settings.currency_counter.fWidth := width
 
     ; Runtime state
-    vars.currency_counter := {"picked": 0, "name": "", "currencies": {}, "session_name": "", "session_img": "", "drop_on_shift_release": 0, "shift_timer": 0}
+    vars.currency_counter := {"picked": 0, "name": "", "last_used": "", "currencies": {}, "session_name": "", "session_img": "", "drop_on_shift_release": 0, "shift_timer": 0}
     vars.hwnd.currency_counter := {"main": "", "drag": ""}
 
     if settings.currency_counter.active
     {
         if !CurrencyCounter_SessionExists(settings.currency_counter.active)
-            settings.currency_counter.active := ""   ; invalid session, will create new
+            settings.currency_counter.active := "" ; invalid session, will create new
     }
     if !settings.currency_counter.active
     {
@@ -130,7 +130,7 @@ CurrencyCounter_LoadSession(id)
     raw_section := ini["session_" id "_currencies"]
     vars.currency_counter.currencies := {}
     vars.currency_counter.session_name := ini["session_" id]["name"]
-    vars.currency_counter.session_img  := ini["session_" id]["img"]
+    vars.currency_counter.session_img := ini["session_" id]["img"]
 
     if IsObject(raw_section)
         for currency_name, raw_val in raw_section
@@ -176,7 +176,7 @@ CurrencyCounter_SetActive(id)
 
     ; Try to load the session
     if !CurrencyCounter_LoadSession(id)
-        return 0   ; session does not exist – do not change active session
+        return 0 ; session does not exist – do not change active session
 
     ; Success: update active session
     settings.currency_counter.active := id
@@ -224,7 +224,7 @@ CurrencyCounter_SaveCurrency(currency_name)
 
     ; Try JSON serialization
     json_str := Json.Dump(entry)
-    
+
     ; Fallback: manual JSON building if library fails
     if !json_str
     {
@@ -268,10 +268,9 @@ CurrencyCounter_HandleClick()
             return
         }
 
-        Sleep, 50
         Clipboard := ""
         SendInput, ^c
-        ClipWait, 0.3
+        ClipWait, 0.2
         if ErrorLevel
             return
 
@@ -284,14 +283,27 @@ CurrencyCounter_HandleClick()
             return
 
         vars.currency_counter.picked := 1
-        vars.currency_counter.name   := name
+        vars.currency_counter.name := name
         CurrencyCounter_DrawBar()
     }
     else if (A_ThisHotkey = "*~LButton")
     {
         name := vars.currency_counter.name
         if !name
-            return   ; No currency picked – ignore
+            return ; No currency picked – ignore
+
+        ; --- NEW: Verify cursor is over a valid item using clipboard ---
+        Clipboard := ""
+        SendInput, ^c ; copy item under cursor
+        ClipWait, 0.2
+        if ErrorLevel
+            return ; clipboard empty – no item, do nothing
+
+        ; Check if clipboard contains a valid item (at least "Rarity:" line)
+        if !RegExMatch(Clipboard, "i)Rarity:")
+            return ; not an item – do not increment
+
+        ; --- End of verification ---
 
         ; Ensure the currency entry exists
         if !IsObject(vars.currency_counter.currencies[name])
@@ -300,6 +312,7 @@ CurrencyCounter_HandleClick()
         }
 
         ; Increment count
+        vars.currency_counter.last_used := name
         vars.currency_counter.currencies[name].count += 1
         CurrencyCounter_SaveCurrency(name)
 
@@ -359,6 +372,47 @@ CurrencyCounter_CheckShiftRelease()
     }
 }
 
+; ──────────────────────────────────────────────────────────────
+;  Process log lines for currency consumption
+;  Call this from Log_Loop with each new log line
+; ──────────────────────────────────────────────────────────────
+CurrencyCounter_ProcessLog(line)
+{
+    local
+    global vars, settings
+
+    ; Pattern 1: "Omen of .... in your inventory has been consumed"
+    if RegExMatch(line, "i)(.+?) in your inventory has been consumed", m)
+    {
+        currency_name := Trim(m1)
+
+        if !IsObject(vars.currency_counter.currencies[currency_name])
+        {
+            vars.currency_counter.currencies[currency_name] := {"count": 0, "price": "", "price_currency": "", "price_updated": ""}
+        }
+        ; Increment count
+        vars.currency_counter.currencies[currency_name].count += 1
+        CurrencyCounter_SaveCurrency(currency_name)
+        CurrencyCounter_DrawBar()
+
+    }
+
+    ; Pattern 2: "Failed to apply item" – optional handling
+    ; Sometimes this appears when currency fails (e.g., using a fusing on a 6L).
+    ; You may want to decrement anyway or ignore.
+    else if InStr(line, "Failed to apply item")
+    {
+        currency_name := vars.currency_counter.last_used
+        if IsObject(vars.currency_counter.currencies[currency_name])
+        {
+            if vars.currency_counter.currencies[currency_name].count > 0
+                vars.currency_counter.currencies[currency_name].count -= 1
+            CurrencyCounter_SaveCurrency(currency_name)
+            CurrencyCounter_DrawBar()
+        }
+
+    }
+}
 
 ; ──────────────────────────────────────────────────────────────
 ;  Click handler  –  wired via #If in hotkeys.ahk

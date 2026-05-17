@@ -569,5 +569,10 @@ Log_Parse(content, ByRef areaID, ByRef areaname, ByRef areaseed, ByRef arealevel
 							MapEvent(type)
 							Break
 						}
+		
+		if settings.features.currency_counter && settings.currency_counter.active
+		{
+			CurrencyCounter_ProcessLog(loopfield)
+		}
 	}
 }
