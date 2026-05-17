@@ -153,6 +153,8 @@ Hotkeys_ESC()
 		If !vars.sanctum.scanning
 			Sanctum("close")
 	}
+	Else If vars.hwnd.currency_counter_table.main && WinExist("ahk_id " vars.hwnd.currency_counter_table.main)
+        CurrencyCounter_TableClose()
 	Else If WinExist("ahk_id " vars.hwnd.stash.main)
 		Stash_Close()
 	Else If vars.currency_counter.picked
@@ -500,19 +502,24 @@ RButton::Sanctum_Relics("click")
 #If vars.hwnd.sanctum_relics.main
 *~SC038::Sanctum_Relics("trans")
 
+;── Currency Counter ──────────────────────────────────────────
+#If settings.features.currency_counter && vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main)
+LButton::CurrencyCounter_BarClick()
+
 #If vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main)
 LButton::CurrencyCounter_Click(1)
 RButton::CurrencyCounter_Click(2)
 
+#If settings.features.currency_counter && vars.hwnd.currency_counter_table.main && (vars.general.wMouse = vars.hwnd.currency_counter_table.main)
+LButton::CurrencyCounter_TableClick(vars.general.cMouse, 1)
+RButton::CurrencyCounter_TableClick(vars.general.cMouse, 2)
 
-;── Currency Counter ──────────────────────────────────────────
 #If settings.features.currency_counter && (vars.general.wMouse = vars.hwnd.poe_client)
-~*RButton::CurrencyCounter_HandleClick()
+~*RButton::CurrencyCounter_RClick()
 
 #If settings.features.currency_counter && (vars.general.wMouse = vars.hwnd.poe_client) && vars.currency_counter.picked
-~*LButton::CurrencyCounter_HandleClick()
+~*LButton::CurrencyCounter_LClick()
 ; ── End Currency Counter ──────────────────────────────────────
-
 
 #If vars.hwnd.stash_picker.main && vars.general.cMouse && WinExist("ahk_id " vars.hwnd.stash_picker.main) && LLK_PatternMatch(LLK_HasVal(vars.hwnd.stash_picker, vars.general.cMouse), "", ["confirm_", "bulk"])
 WheelUp::Stash_PricePicker("+")
