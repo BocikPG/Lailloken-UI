@@ -108,7 +108,7 @@ Init_currency_counter()
 
     raw := ini.settings["sessions"]
     settings.currency_counter.sessions := IsObject(check := Json.Load(raw)) ? check : {}
-    settings.currency_counter.active := !Blank(check := ini.settings["active"]) ? check : ""
+    settings.currency_counter.active := !Blank(check := ini.settings["active"]) ? check : 0
 
     LLK_FontDimensions(settings.currency_counter.fSize, height, width)
     settings.currency_counter.fHeight := height
@@ -122,17 +122,14 @@ Init_currency_counter()
     ; Cache icon image (placeholder path – replace with real asset)
     If FileExist("img\GUI\currency\blessed.png")
         vars.pics.currency_counter := {"icon": LLK_ImageCache("img\GUI\currency\blessed.png")}
-    Else vars.pics.currency_counter := {"icon": ""}
-
-        If settings.currency_counter.active
-        {
-            If !CurrencyCounter_SessionExists(settings.currency_counter.active)
-                settings.currency_counter.active := ""
-        }
-    If !settings.currency_counter.active
-        CurrencyCounter_NewSession("Session " A_Now, "")
+    Else 
+        vars.pics.currency_counter := {"icon": ""}
+    If !Blank(settings.currency_counter.active)
+    {
+        CurrencyCounter_SetActive(settings.currency_counter.active)
+    }
     Else
-        CurrencyCounter_LoadSession(settings.currency_counter.active)
+        CurrencyCounter_NewSession()
 
     CurrencyCounter_DrawBar()
 }
@@ -143,16 +140,15 @@ Init_currency_counter()
 CurrencyCounter_LoadSession(id)
 {
     local
-    global vars, settings
+    global vars, settings, Json
+
+    If !IsObject(Json)
+        Json := new JSON()
 
     ini := IniBatchRead("ini" vars.poe_version "\currency-counter.ini")
-    If !ini.HasKey("session_" id)
-        Return 0
 
     raw_section := ini["session_" id "_currencies"]
     vars.currency_counter.currencies := {}
-    vars.currency_counter.session_name := ini["session_" id]["name"]
-    vars.currency_counter.session_img := ini["session_" id]["img"]
 
     If IsObject(raw_section)
         For currency_name, raw_val in raw_section
@@ -160,20 +156,20 @@ CurrencyCounter_LoadSession(id)
             entry := Json.Load(raw_val)
             If IsObject(entry)
                 vars.currency_counter.currencies[currency_name] := entry
+
         }
     Return 1
 }
 
-CurrencyCounter_NewSession(name, img := "")
+CurrencyCounter_NewSession()
 {
     local
     global vars, settings
 
     id := A_Now
-    settings.currency_counter.sessions[id] := name
+    name := "Session " . A_Now
+    settings.currency_counter.sessions[id] := { name : name , img : ""}
     CurrencyCounter_SaveIndex()
-    IniWrite, % name, % "ini" vars.poe_version "\currency-counter.ini", % "session_" id, name
-    IniWrite, % img, % "ini" vars.poe_version "\currency-counter.ini", % "session_" id, img
     CurrencyCounter_SetActive(id)
 }
 
@@ -182,17 +178,14 @@ CurrencyCounter_SetActive(id)
     local
     global vars, settings
 
-    If !id
+    If Blank(id)
     {
-        settings.currency_counter.active := ""
-        IniWrite, % "", % "ini" vars.poe_version "\currency-counter.ini", settings, active
-        vars.currency_counter.picked := 0, vars.currency_counter.name := ""
-        vars.currency_counter.currencies := {}, vars.currency_counter.session_name := "", vars.currency_counter.session_img := ""
-        CurrencyCounter_DrawBar()
-        Return 1
-    }
-    If !CurrencyCounter_LoadSession(id)
+        LLK_Overlay("CRITICAL ERROR WITH CURRENCY COUNTER RESTART MODULE", 5,,"red")
         Return 0
+    }
+
+    CurrencyCounter_LoadSession(id)
+    
     settings.currency_counter.active := id
     IniWrite, % id, % "ini" vars.poe_version "\currency-counter.ini", settings, active
     vars.currency_counter.picked := 0, vars.currency_counter.name := ""
@@ -221,21 +214,18 @@ CurrencyCounter_DeleteSession(id)
             Break
         }
     Else
-        CurrencyCounter_NewSession("Session " A_Now, "")
-}
-
-CurrencyCounter_SessionExists(id)
-{
-    global vars
-    IniRead, name, % "ini" vars.poe_version "\currency-counter.ini", session_%id%, name, % "NONEXISTENT"
-    Return (name != "NONEXISTENT")
+        CurrencyCounter_NewSession()
 }
 
 CurrencyCounter_SaveIndex()
 {
     local
-    global vars, settings
-    IniWrite, % """" Json.Dump(settings.currency_counter.sessions) """", % "ini" vars.poe_version "\currency-counter.ini", settings, sessions
+    global vars, settings, Json
+
+    If !IsObject(Json)
+        Json := new JSON()
+
+    IniWrite, % Json.Dump(settings.currency_counter.sessions), % "ini" vars.poe_version "\currency-counter.ini", settings, sessions
 }
 
 CurrencyCounter_SaveCurrency(currency_name)
@@ -246,15 +236,16 @@ CurrencyCounter_SaveCurrency(currency_name)
     If !IsObject(Json)
         Json := new JSON()
 
+    
     id := settings.currency_counter.active
-    If !id || !CurrencyCounter_SessionExists(id) || !currency_name
+    If Blank(id) || Blank(currency_name)
         Return
 
     entry := vars.currency_counter.currencies[currency_name]
     If !IsObject(entry)
         Return
 
-    IniWrite, % """" Json.Dump(entry) """", % "ini" vars.poe_version "\currency-counter.ini", % "session_" id "_currencies", % currency_name
+    IniWrite, % Json.Dump(entry), % "ini" vars.poe_version "\currency-counter.ini", % "session_" id "_currencies", % currency_name
 }
 
 ; ──────────────────────────────────────────────────────────────
@@ -268,12 +259,9 @@ CurrencyCounter_TableToggle()
     If vars.hwnd.cc_logs.main && WinExist("ahk_id " vars.hwnd.cc_logs.main)
         if(!Blank(hwnd_old := vars.hwnd.cc_logs.main))
             LLK_Overlay(hwnd_old, "destroy")
-    Else
-        CurrencyCounter_Logs()
+        Else
+            CurrencyCounter_Logs()
 }
-
-
-
 
 ; ──────────────────────────────────────────────────────────────
 ;  Bar click → open/close table
@@ -283,12 +271,11 @@ CurrencyCounter_BarClick()
     local
     global vars, settings
 
-    
     ; Check if click is on the drag handle (top-left area) – if so, don't open table
     check := LLK_HasVal(vars.hwnd.currency_counter, vars.general.cMouse)
     If (check = "drag")
         Return ; let CurrencyCounter_Click() handle dragging
-    
+
     LLK_ToolTip("BARclicked",1.5)
     CurrencyCounter_TableToggle()
 }
@@ -341,8 +328,14 @@ CurrencyCounter_LClick()
 
     ; --- End of verification ---
 
+    if(Blank(vars.currency_counter.currencies[vars.currency_counter.name]))
+    {
+        vars.currency_counter.currencies[vars.currency_counter.name] := {"count": 0, "price": 0.0, "price_currency": "chaos", "price_updated": 0}
+    }
     vars.currency_counter.currencies[vars.currency_counter.name].count += 1
     vars.currency_counter.last_used := vars.currency_counter.name
+
+    CurrencyCounter_SaveCurrency(vars.currency_counter.name)
 
     ; Watch for shift-drop
     If GetKeyState("Shift", "P")
@@ -360,7 +353,6 @@ CurrencyCounter_LClick()
         vars.currency_counter.name := ""
     }
 
-    CurrencyCounter_SaveCurrency(vars.currency_counter.name)
     CurrencyCounter_DrawBar()
 }
 
