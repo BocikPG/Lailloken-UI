@@ -88,7 +88,10 @@
 Init_currency_counter()
 {
     local
-    global vars, settings
+    global vars, settings, Json
+
+    If !IsObject(Json)
+        Json := new JSON()
 
     If !FileExist("ini" vars.poe_version "\currency-counter.ini")
         IniWrite, % "", % "ini" vars.poe_version "\currency-counter.ini", settings
@@ -167,7 +170,7 @@ CurrencyCounter_NewSession()
     global vars, settings
 
     id := A_Now
-    name := "Session " . A_Now
+    name := "New Session"
     settings.currency_counter.sessions[id] := { name : name , img : ""}
     CurrencyCounter_SaveIndex()
     CurrencyCounter_SetActive(id)

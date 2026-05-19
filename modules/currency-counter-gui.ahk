@@ -10,8 +10,9 @@ CurrencyCounter_Logs(cHWND := "")
 	global vars, settings
 	static toggle := 0
 
-	fSize2 := settings.currency_counter.fSize2
+	fSize2 := settings.currency_counter.fSize
 	LLK_FontDimensions(fSize2, fHeight2, fWidth2)
+	LLK_FontDimensions(fSize2 + 4, fHeight3, fWidth3)
 	hFont := fHeight2 * 1.5
 	max_lines := Floor(vars.monitor.h * 0.75 / hFont)
 	ssf := settings.currency_counter.ssf
@@ -58,8 +59,10 @@ CurrencyCounter_Logs(cHWND := "")
 
 	; ── Gather entries (currencies with count > 0) ──────────
 	entries := []
+	kw := vars.cc_logs.keywords["name"]
 	For name, entry in vars.currency_counter.currencies
 		If IsObject(entry) && entry.count > 0
+			&& (Blank(kw) || InStr(name, kw))
 			entries.Push({"name": name, "entry": entry})
 
 	toggle := !toggle, GUI_name := "cc_logs" toggle
@@ -73,17 +76,20 @@ CurrencyCounter_Logs(cHWND := "")
 	; ══════════════════════════════════════════════════════════
 	;  Drag box
 	; ══════════════════════════════════════════════════════════
-	Gui, %GUI_name%: Add, Text, % "w" (totalWidth - (fWidth2 * 3)) " h" hFont " Border Center 0x200 BackgroundTrans gCurrencyCounter_Logs2 HWNDhwnd_drag", % "Currency Counter Viewer"
+	Gui, %GUI_name%: Font, % "s" fSize2 - 3 " cWhite", % vars.system.font
+	Gui, %GUI_name%: Add, Text, % "w" (totalWidth - (fWidth2 * 3)) " Border Center 0x200 BackgroundTrans gCurrencyCounter_Logs2 HWNDhwnd_drag", % "Currency Counter Viewer"
 	vars.hwnd.cc_logs.dragbar := hwnd_drag
 
-	Gui, %GUI_name%: Add, Text, % "x" (totalWidth - (fWidth2 * 3) - 2) " y-1 w" (fWidth2 * 3) - 1 " h" hFont " Border Center 0x200 gCurrencyCounter_Logs2 HWNDhwnd_close", % "x"
+	Gui, %GUI_name%: Add, Text, % "x" (totalWidth - (fWidth2 * 3) - 2) " y-1 w" (fWidth2 * 3) - 1 " Border Center 0x200 gCurrencyCounter_Logs2 HWNDhwnd_close", % "x"
 	vars.hwnd.cc_logs.close := hwnd_close
+
+	Gui, %GUI_name%: Font, % "s" fSize2 " cWhite", % vars.system.font
 
 	; ══════════════════════════════════════════════════════════
 	;  SESSION TABS
 	; ══════════════════════════════════════════════════════════
 	Gui, %GUI_name%: Font, % "s" fSize2 - 2, % vars.system.font
-	Gui, %GUI_name%: Add, Text, x0 y+10 Section Hidden  ; invisible anchor
+	Gui, %GUI_name%: Add, Text, x0 y+10 Section Hidden ; invisible anchor
 	active_id := settings.currency_counter.active
 
 	settings.currency_counter.spacing := 10 ;TODO: actually make it in setting with clamp
@@ -94,50 +100,62 @@ CurrencyCounter_Logs(cHWND := "")
 	if(Blank(vars.currency_counter.carousel_index))
 		vars.currency_counter.carousel_index := 0
 
-	newSessionButtonWidth := fWidth2
-	itemWidth := (totalWidth - newSessionButtonWidth - (visibleCount + 1) * spacing) / visibleCount
-	itemHeight := hFont * 2
+	newSessionButtonWidth := hFont * 2
+	itemWidth := (totalWidth - newSessionButtonWidth - (visibleCount + 2) * spacing) / visibleCount
+	itemHeight := hFont
 	picWidth := itemWidth ; Adjust this ratio as needed
 	gap := 5
 	firstItemAdded := false
-	LLK_ToolTip("session " visibleCount, 2)
 
 	Loop % visibleCount {
 		idx := A_Index
 		xPos := (idx-1)*(itemWidth + spacing)
 
-    	; Picture: left side                   ; top aligned within the element
-    	picH := itemHeight - 2             ; a little smaller to avoid edge clipping
+		; Picture: left side                   ; top aligned within the element
+		picH := itemHeight - 2 ; a little smaller to avoid edge clipping
 
-    	; Text: right side, vertically centered
-    	txtX := xPos + picWidth + gap
+		; Text: right side, vertically centered
+		txtX := xPos + picWidth + gap
 		txtW := itemWidth - picWidth - gap
 
 		yOpt := !firstItemAdded ? "ys" : "yp"
-		LLK_ToolTip("Loop " idx, 2)
 
 		For key, val in settings.currency_counter.sessions
 		{
-			if(idx < vars.currency_counter.carousel_index || idx >= vars.currency_counter.carousel_index + visibleCount)
+			if(A_Index <= vars.currency_counter.carousel_index)
 				continue
-			LLK_ToolTip("Tworzy", 2)
-			if(!Blank(val.img)) ;check if image exist
+			if(A_Index > vars.currency_counter.carousel_index + visibleCount)
+				break
+
+			slotNum := A_Index - vars.currency_counter.carousel_index
+			xPos := spacing + (slotNum - 1) * (itemWidth + spacing)
+			yOpt := (slotNum = 1) ? "ys" : "yp"
+
+			isActive := (key = settings.currency_counter.active)
+			textColor := isActive ? " cBlack" : " cWhite"
+			bgColor := isActive ? "White" : "1A1A1A"
+
+			if(!Blank(val.img))
 			{
-				Gui, Add, Picture, % "x" xPos " " yOpt " w" picWidth " h" itemHeight, val.img
-				firstItemAdded := true
-				yOpt := "yp"
+				Gui, %GUI_name%: Add, Text, % "x" xPos " " yOpt " w" itemWidth " h" itemHeight " Border Center 0x200 BackgroundTrans", % val.name
+				Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background" bgColor " HWNDhwnd", 0
+				vars.hwnd.cc_logs["tab_" key] := hwnd
 			}
 			Else
 			{
-				txtX -= picWidth
-				txtW += picWidth
+				Gui, %GUI_name%: Font, % "s" fSize2 - 2 (isActive ? " cBlack" : " cWhite"), % vars.system.font
+				Gui, %GUI_name%: Add, Text, % "x" xPos " " yOpt " w" itemWidth " h" itemHeight " Border Center 0x200 BackgroundTrans", % val.name
+				Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background" bgColor " HWNDhwnd", 0
+				vars.hwnd.cc_logs["tab_" key] := hwnd ; store Progress hwnd, hotkey sends cMouse which will match it
+				Gui, %GUI_name%: Font, % "s" fSize2 - 2 " cWhite", % vars.system.font
 			}
-
-			Gui, Add, Text , % "x" txtX " " yOpt " w" txtW " h" itemHeight " Center", val.name
-			firstItemAdded := true
 		}
 	}
-	Gui, %GUI_name%: Add, Text, % "yp x" totalWidth - newSessionButtonWidth " w" newSessionButtonWidth " h" itemHeight "Border gCurrencyCounter_Logs2 HWNDhwnd c606060 ", % " + "
+
+	LLK_ToolTip(fSize2,2)
+	Gui, %GUI_name%: Font, % "s" fSize2 * 3 " c41BB1C", % vars.system.font
+	Gui, %GUI_name%: Add, Text, % "yp x" totalWidth - newSessionButtonWidth - spacing " w" newSessionButtonWidth " h" itemHeight " Border Center 0x200 gCurrencyCounter_Logs2 HWNDhwnd", % " + "
+	Gui, %GUI_name%: Font, % "s" fSize2 " cWhite", % vars.system.font
 	vars.hwnd.cc_logs.add_session := hwnd
 
 	; ══════════════════════════════════════════════════════════
@@ -155,7 +173,7 @@ CurrencyCounter_Logs(cHWND := "")
 	vars.hwnd.cc_logs.session_img := hwnd
 	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
 
-	Gui, %GUI_name%: Add, Edit, % "ys yp gCurrencyCounter_Logs2 HWNDhwnd_name_edit w" fWidth2 * 14 " h" hEdit, % vars.currency_counter.session_name
+	Gui, %GUI_name%: Add, Edit, % "ys yp cBlack gCurrencyCounter_Logs2 HWNDhwnd_name_edit w" fWidth2 * 14 " h" hEdit, % vars.currency_counter.session_name
 	vars.hwnd.cc_logs.name_edit := hwnd_name_edit
 
 	Gui, %GUI_name%: Add, Text, % "ys yp Border gCurrencyCounter_Logs2 HWNDhwnd 0x200 Center cCC3333 x+" fWidth2//4 " w" hEdit " h" hEdit, % "X"
@@ -163,7 +181,18 @@ CurrencyCounter_Logs(cHWND := "")
 	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cRed HWNDhwnd range0-500", 0
 	vars.hwnd.cc_logs.del_prog := hwnd
 
+	; Currency picker button – sits on the session-name row, right of the delete button.
+	Gui, %GUI_name%: Add, Text, % "ys yp Border gCurrencyCounter_Logs2 HWNDhwnd 0x200 Center cC89B3C x+" fWidth2//4 " w" hEdit * 1.5 " h" hEdit, % " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur) " "
+	vars.hwnd.cc_logs.display_cur_icon := hwnd
+	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
+
+	; ══════════════════════════════════════════════════════════
+	;  TABLE  – search, headers, data rows
+	; ══════════════════════════════════════════════════════════
+
 	row_count := Min(entries.Count(), max_lines)
+
+	
 
 	For col_i, val in table
 	{
@@ -173,36 +202,51 @@ CurrencyCounter_Logs(cHWND := "")
 
 		Gui, %GUI_name%: Font, % "s" fSize2
 
-		; ── Column 1: hidden anchor to measure hEdit, then search row ──
-		; ── Columns 2+: search/spacer IS the Section anchor (ys Section) ──
+		; ── Search / spacer row (above header) ──────────────────
+		; col 1:     "Search" + "X"  →  xs Section anchor
+		; col total: "Total" label + icon placeholder (ys Section)
+		; others:    blank spacer (ys Section)
 		If (col_i = 1)
 		{
-			; Hidden anchor: sets xs left wall, gives us hEdit via ControlGetPos
+			; Hidden dummy to measure hEdit for the whole table
 			Gui, %GUI_name%: Add, Text, % "Section xs BackgroundTrans Hidden Border HWNDhwnd x-1 y+" fHeight2/4 " w" width, % " "
 			ControlGetPos,, yEdit,, hEdit,, % "ahk_id " hwnd
 
-			; Search row for col 1: "Search" label + X reset
-			; Uses "xs Section" so xs is re-anchored here for sub-controls,
-			; then header "xs y+-1" will correctly return to this x.
-			Gui, %GUI_name%: Add, Text, % "xs Section BackgroundTrans Right w" width - hEdit - fWidth2//2 " h" hEdit, % "Search"
-			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center gCurrencyCounter_Logs2 HWNDhwnd cRed 0x200 x+" fWidth2//4 " w" hEdit " h" hEdit, % "X"
+			; Search Edit (Section anchor for col 1) + X reset flush right
+			; Search Edit (Section anchor for col 1) + X reset flush right
+			Gui, %GUI_name%: Add, Edit, % "xs+1 Section cBlack gCurrencyCounter_Logs2 HWNDhwnd_search w" width - hEdit " h" hEdit (!Blank(pCheck := vars.cc_logs.keywords["name"]) ? " cGreen" : ""), % pCheck
+			vars.hwnd.cc_logs.search_name := hwnd_search
+			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center gCurrencyCounter_Logs2 HWNDhwnd cRed 0x200 x+0 w" hEdit " h" hEdit, % "X"
 			vars.hwnd.cc_logs.filter_reset := hwnd
 		}
-		Else If (header = "price")
+		Else If (header = "total")
 		{
-			; Edit IS the Section anchor for this column
-			Gui, %GUI_name%: Add, Edit, % "ys Section cBlack gCurrencyCounter_Logs2 HWNDhwnd_search w" width " h" hEdit (!Blank(pCheck := vars.cc_logs.keywords["price"]) ? " cGreen" : ""), % pCheck
-			vars.hwnd.cc_logs.search_price := hwnd_search
+			; "Total" label in the spacer row – IS the Section anchor (ys Section).
+			; Width covers just the value column; icon is placed separately after.
+			Gui, %GUI_name%: Add, Text, % "ys Section BackgroundTrans Border w" width " h" hEdit " Center cWhite", % "Total "
 		}
 		Else
 		{
-			; Spacer IS the Section anchor for this column
+			; Blank spacer IS the Section anchor for this column
 			Gui, %GUI_name%: Add, Text, % "ys Section BackgroundTrans Border w" width " h" hEdit, % " "
 		}
 
-		; ── Header label: xs returns to this column's anchor, y+-1 overlaps border ──
+		; ── Header label: xs y+-1 snaps to column anchor ────────
+		; For "total": show computed value instead of column name.
 		Gui, %GUI_name%: Font, % "s" fSize2 + 4
-		Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Border Center HWNDhwnd w" width, % val.3.1
+		If (header = "total")
+		{
+			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Border Center HWNDhwnd cC89B3C w" width, % CurrencyCounter_ComputeTotal()
+			vars.hwnd.cc_logs.total_value := hwnd
+			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Hidden HWNDhwnd w1 h1", % ""
+		}
+		Else
+		{
+			Gui, %GUI_name%: Font, % "s" fSize2 - 2
+			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Center 0x200 HWNDhwnd w" width, % val.3.1
+			Gui, %GUI_name%: Add, Progress, % "xp yp wp h" fHeight3 " Border Disabled BackgroundBlack HWNDhwnd", 0
+			Gui, %GUI_name%: Font, % "s" fSize2 + 4
+		}
 		vars.hwnd.cc_logs["col_" header] := hwnd
 
 		; ── Data rows ────────────────────────────────────────
@@ -268,20 +312,20 @@ CurrencyCounter_Logs2(cHWND)
 	If (cHWND = vars.hwnd.cc_logs.name_edit)
 	{
 		input := LLK_ControlGet(cHWND)
-		If (input != vars.currency_counter.session_name)
-		{
-			vars.currency_counter.session_name := input
-			id := settings.currency_counter.active
-			IniWrite, % input, % "ini" vars.poe_version "\currency-counter.ini", % "session_" id, name
-			settings.currency_counter.sessions[id] := input
-			CurrencyCounter_SaveIndex()
-		}
+		id := settings.currency_counter.active
+		If !IsObject(settings.currency_counter.sessions[id])
+			settings.currency_counter.sessions[id] := {img: "", name: input}
+		Else
+			settings.currency_counter.sessions[id].name := input
+		vars.currency_counter.session_name := input
+		CurrencyCounter_SaveIndex()
 		Return
 	}
 
-	If (cHWND = vars.hwnd.cc_logs.search_price)
+	If (cHWND = vars.hwnd.cc_logs.search_name)
 	{
 		input := LLK_ControlGet(cHWND)
+		vars.cc_logs.keywords["name"] := input
 		GuiControl, % "+c" (Blank(input) ? "Black" : "Green"), % cHWND
 		GuiControl, movedraw, % cHWND
 		Return
@@ -402,6 +446,82 @@ CurrencyCounter_Logs2(cHWND)
 			CurrencyCounter_PriceEdit(cHWND, currency_name)
 		Return
 	}
+}
+
+; ──────────────────────────────────────────────────────────────
+;  CurrencyCounter_CurPicker  –  3-icon currency selector
+;  Appears at the icon position, one row above the table.
+;  Clicking any option sets display_cur and closes itself.
+;  Wire: already handled via "display_cur_icon" in Logs2.
+; ──────────────────────────────────────────────────────────────
+CurrencyCounter_CurPicker(cHWND)
+{
+	local
+	global vars, settings
+	static toggle := 0
+
+	; Options: id, label shown in picker
+	options := [["chaos", "c"], ["divine", "d"], ["exalt", "e"]]
+
+	fSize2 := settings.currency_counter.fSize2
+	LLK_FontDimensions(fSize2, fHeight2, fWidth2)
+	hFont := fHeight2 * 1.5
+
+	; Get icon position in client-area coords, then add parent GUI screen pos
+	ControlGetPos, cx, cy, cw,, % "ahk_id " cHWND
+	WinGetPos, gx, gy,,, % "ahk_id " vars.hwnd.cc_logs.main
+	px := gx + cx + cw // 2 ; horizontal centre of icon (for centring the picker over it)
+	py := gy + cy ; top edge of icon in screen coords
+
+	toggle := !toggle, pName := "cc_cur_picker" toggle
+	Gui, %pName%: New, % "-DPIScale +LastFound -Caption +AlwaysOnTop +ToolWindow +Border +E0x02000000 +E0x00080000 HWNDhwnd_picker"
+	Gui, %pName%: Color, Black
+	Gui, %pName%: Margin, -1, -1
+	Gui, %pName%: Font, % "s" fSize2 + 4 " cWhite", % vars.system.font
+	vars.hwnd.cc_cur_picker := {"main": hwnd_picker}
+
+	; 3 icon cells side by side, same size as the icon (hFont*2 square)
+	icon_side := hFont * 2
+	For i, opt in options
+	{
+		id := opt.1
+		label := opt.2
+		color := (id = settings.currency_counter.display_cur) ? " cLime" : " cC89B3C"
+		pos := (i = 1) ? "Section xs" : "ys"
+
+		; Pic when assets exist; Text placeholder for now
+		; Swap this line for: Gui, %pName%: Add, Pic, ...
+		Gui, %pName%: Add, Text, % pos " Border BackgroundTrans Center gCurrencyCounter_CurPickerClick HWNDhwnd 0x200" color " w" icon_side " h" icon_side, % label
+		vars.hwnd.cc_cur_picker["opt_" id] := hwnd
+		Gui, %pName%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
+	}
+
+	; Show flush with the top of the icon, horizontally centred on it
+	Gui, %pName%: Show, % "NA x10000 y10000"
+	WinGetPos,,, pw,, % "ahk_id " hwnd_picker
+	; Centre picker horizontally on the icon, place just above it.
+	; Subtract 1 to compensate for the -1 GUI margin (border sits outside client area).
+	Gui, %pName%: Show, % "NA x" px - pw // 2 " y" py - icon_side - 1
+	LLK_Overlay(hwnd_picker, "show", 0, pName)
+}
+
+CurrencyCounter_CurPickerClick()
+{
+	local
+	global vars, settings
+
+	cHWND := A_GuiControl ; hwnd of the clicked Text control
+	check := LLK_HasVal(vars.hwnd.cc_cur_picker, cHWND)
+	If !InStr(check, "opt_")
+		Return
+	KeyWait, LButton
+	chosen := SubStr(check, 5) ; strip "opt_"
+	settings.currency_counter.display_cur := chosen
+	IniWrite, % chosen, % "ini" vars.poe_version "\currency-counter.ini", settings, display-currency
+	LLK_Overlay(vars.hwnd.cc_cur_picker.main, "destroy")
+	vars.hwnd.cc_cur_picker := {"main": ""}
+	CurrencyCounter_Logs()
+	Return
 }
 
 ; ──────────────────────────────────────────────────────────────
@@ -542,6 +662,6 @@ CurrencyCounter_ComputeTotal()
 }
 
 CurrencyCounter_ShiftCarousel() {
-    
+
 }
 
