@@ -44,26 +44,67 @@ CurrencyCounter_Logs(cHWND := "")
 			, ["price", "right", ["Price (ea)", "777777"]]
 			, ["pc", "center", ["In", "77777"]]
 			, ["ts", "right", ["Updated", "7777777777"]]
-			, ["total", "right", ["Total", "777777777"]] ]
+			, ["total", "right", ["Total", "7777777777777"]] ]
 
 	totalColumnsWidth := 0
+	totalColWidth := 0
 	For col_i, val in table
 	{
 		header := val.1
 		LLK_PanelDimensions(val.3, fSize2, width, height,, 4)
 		width := (width < hFont) ? hFont : width
 		totalColumnsWidth += width
+		If (val.1 = "total")
+		{
+			totalColWidth := width
+		}
 	}
 	hEdit := hFont ; approximation, or compute exactly using LLK_PanelDimensions on a sample string
 	totalWidth := totalColumnsWidth
 
 	; ── Gather entries (currencies with count > 0) ──────────
+
 	entries := []
 	kw := vars.cc_logs.keywords["name"]
 	For name, entry in vars.currency_counter.currencies
 		If IsObject(entry) && entry.count > 0
 			&& (Blank(kw) || InStr(name, kw))
 			entries.Push({"name": name, "entry": entry})
+
+	col := vars.cc_logs.sort_col
+	asc := vars.cc_logs.sort_asc
+	If (col != "")
+	{
+		Loop, % entries.Count() - 1
+		{
+			i := A_Index
+			Loop, % entries.Count() - i
+			{
+				j := A_Index
+				a := entries[j], b := entries[j+1]
+				If (col = "count")
+					swap := asc ? a.entry.count > b.entry.count : a.entry.count < b.entry.count
+				Else If (col = "price")
+					swap := asc ? a.entry.price > b.entry.price : a.entry.price < b.entry.price
+				Else If (col = "name")
+					swap := asc ? a.name > b.name : a.name < b.name
+				Else If (col = "ts")
+					swap := asc ? a.entry.price_updated < b.entry.price_updated : a.entry.price_updated > b.entry.price_updated
+				Else If (col = "total")
+				{
+					chaosA := CurrencyCounter_ToChaos(a.entry.price, a.entry.price_currency) * a.entry.count
+					chaosB := CurrencyCounter_ToChaos(b.entry.price, b.entry.price_currency) * b.entry.count
+					swap := asc ? chaosA > chaosB : chaosA < chaosB
+				}
+				If swap
+				{
+					temp := entries[j]
+					entries[j] := entries[j+1]
+					entries[j+1] := temp
+				}
+			}
+		}
+	}
 
 	toggle := !toggle, GUI_name := "cc_logs" toggle
 	Gui, %GUI_name%: New, % "-DPIScale +LastFound -Caption +AlwaysOnTop +ToolWindow +Border +E0x02000000 +E0x00080000 HWNDcc_logs"
@@ -74,16 +115,18 @@ CurrencyCounter_Logs(cHWND := "")
 	vars.hwnd.cc_logs := {"main": cc_logs, "toggle": toggle}
 
 	; ══════════════════════════════════════════════════════════
-	;  Drag box
+	;  Drag box – dynamically adjusts to actual window width
 	; ══════════════════════════════════════════════════════════
+	border_compensation := (table.Count() - 1) * 1 ; each column adds ~2px border
+	closeWidth := fWidth2 * 3
+	dragWidth := totalWidth - closeWidth - border_compensation + 2
+
 	Gui, %GUI_name%: Font, % "s" fSize2 - 3 " cWhite", % vars.system.font
-	Gui, %GUI_name%: Add, Text, % "w" (totalWidth - (fWidth2 * 3)) " Border Center 0x200 BackgroundTrans gCurrencyCounter_Logs2 HWNDhwnd_drag", % "Currency Counter Viewer"
+	Gui, %GUI_name%: Add, Text, % "w" dragWidth " Border Center 0x200 BackgroundTrans gCurrencyCounter_Logs2 HWNDhwnd_drag", % "Currency Counter Viewer"
 	vars.hwnd.cc_logs.dragbar := hwnd_drag
 
-	Gui, %GUI_name%: Add, Text, % "x" (totalWidth - (fWidth2 * 3) - 2) " y-1 w" (fWidth2 * 3) - 1 " Border Center 0x200 gCurrencyCounter_Logs2 HWNDhwnd_close", % "x"
+	Gui, %GUI_name%: Add, Text, % "x" totalWidth - closeWidth - border_compensation " y-1 w" closeWidth " Border Center 0x200 gCurrencyCounter_Logs2 HWNDhwnd_close", % "x"
 	vars.hwnd.cc_logs.close := hwnd_close
-
-	Gui, %GUI_name%: Font, % "s" fSize2 " cWhite", % vars.system.font
 
 	; ══════════════════════════════════════════════════════════
 	;  SESSION TABS
@@ -152,47 +195,66 @@ CurrencyCounter_Logs(cHWND := "")
 		}
 	}
 
-	LLK_ToolTip(fSize2,2)
 	Gui, %GUI_name%: Font, % "s" fSize2 * 3 " c41BB1C", % vars.system.font
 	Gui, %GUI_name%: Add, Text, % "yp x" totalWidth - newSessionButtonWidth - spacing " w" newSessionButtonWidth " h" itemHeight " Border Center 0x200 gCurrencyCounter_Logs2 HWNDhwnd", % " + "
 	Gui, %GUI_name%: Font, % "s" fSize2 " cWhite", % vars.system.font
 	vars.hwnd.cc_logs.add_session := hwnd
 
 	; ══════════════════════════════════════════════════════════
-	;  INFO BAR  – image | name edit | delete
+	;  INFO BAR  – image | session label | name edit | delete | spacer | currency picker (right-aligned)
 	; ══════════════════════════════════════════════════════════
-	Gui, %GUI_name%: Font, % "s" fSize2, % vars.system.font
+	Gui, %GUI_name%: Font, % "s" fSize2 " cWhite", % vars.system.font
 
-	; Hidden anchor to measure hEdit for the info bar row
-	Gui, %GUI_name%: Add, Text, % "xs Section BackgroundTrans Hidden Border HWNDhwnd x-1 y+" fHeight2/4 " w" fHeight2, % " "
+	; Hidden anchor to measure hEdit for the whole info bar row
+	Gui, %GUI_name%: Add, Text, % "xs Section BackgroundTrans Hidden Border HWNDhwnd x-1 y+-1 w" fHeight2, % " "
 	ControlGetPos,, yEdit,, hEdit,, % "ahk_id " hwnd
+
+	; Hidden default button (keeps Enter key behaviour)
 	Gui, %GUI_name%: Add, Button, % "xp yp wp hp Hidden Default gCurrencyCounter_Logs2 HWNDhwnd_defbtn", ok
 	vars.hwnd.cc_logs.filter_button := hwnd_defbtn
 
-	Gui, %GUI_name%: Add, Text, % "xs Section y+0 Border gCurrencyCounter_Logs2 HWNDhwnd 0x200 Center c404040 w" hEdit " h" hEdit, % "IMG"
-	vars.hwnd.cc_logs.session_img := hwnd
-	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
+	imgSize := fHeight2
+	; ── "Session:" label (also larger, clearly visible) ───────
+	labelWidth := fWidth2 * 8
+	Gui, %GUI_name%: Add, Text, % "xs Section y+0 Border 0x200 Center BackgroundTrans cWhite w" labelWidth " h" imgSize, % "Session:"
 
-	Gui, %GUI_name%: Add, Edit, % "ys yp cBlack gCurrencyCounter_Logs2 HWNDhwnd_name_edit w" fWidth2 * 14 " h" hEdit, % vars.currency_counter.session_name
+	; ── Session image (larger) ─────────────────────────────────
+	Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center c404040 w" imgSize " h" imgSize, % "IMG"
+	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
+	vars.hwnd.cc_logs.session_img := hwnd
+
+	; ── Name edit field ───────────────────────────────────────
+	editWidth := fWidth2 * 16
+	Gui, %GUI_name%: Add, Edit, % "ys yp cBlack gCurrencyCounter_Logs2 HWNDhwnd_name_edit w" editWidth " h" imgSize, % vars.currency_counter.session_name
 	vars.hwnd.cc_logs.name_edit := hwnd_name_edit
 
-	Gui, %GUI_name%: Add, Text, % "ys yp Border gCurrencyCounter_Logs2 HWNDhwnd 0x200 Center cCC3333 x+" fWidth2//4 " w" hEdit " h" hEdit, % "X"
-	vars.hwnd.cc_logs.del_btn := hwnd
+	; ── Accept button (X) with progress bar ───────────────────
+	accSize := imgSize
+	Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center c41BB1C w" accSize " h" accSize, % " + "
+	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cRed HWNDhwnd range0-500", 0
+	vars.hwnd.cc_logs.accept_prog := hwnd
+
+	; ── Delete button (X) with progress bar ───────────────────
+	delSize := accSize / 2
+	Gui, %GUI_name%: Add, Text, % "x+" delSize /2 " ys+" delSize /2 "yp Border 0x200 Center cCC3333 w" delSize " h" delSize, % "X"
 	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cRed HWNDhwnd range0-500", 0
 	vars.hwnd.cc_logs.del_prog := hwnd
 
-	; Currency picker button – sits on the session-name row, right of the delete button.
-	Gui, %GUI_name%: Add, Text, % "ys yp Border gCurrencyCounter_Logs2 HWNDhwnd 0x200 Center cC89B3C x+" fWidth2//4 " w" hEdit * 1.5 " h" hEdit, % " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur) " "
-	vars.hwnd.cc_logs.display_cur_icon := hwnd
-	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
-
+	; ── Currency picker (only if not SSF) – placed at far right edge ──
+	If !ssf
+	{
+		pickerWidth := totalColWidth
+		; Absolute X coordinate: right edge minus picker width
+		pickerX := totalWidth - pickerWidth - table.Count() + 1
+		Gui, %GUI_name%: Add, Text, % "yp x" pickerX " Border 0x200 Center cC89B3C w" pickerWidth " h" imgSize, % " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur) " "
+		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
+		vars.hwnd.cc_logs.display_cur_btn := hwnd
+	}
 	; ══════════════════════════════════════════════════════════
 	;  TABLE  – search, headers, data rows
 	; ══════════════════════════════════════════════════════════
 
 	row_count := Min(entries.Count(), max_lines)
-
-	
 
 	For col_i, val in table
 	{
@@ -209,7 +271,7 @@ CurrencyCounter_Logs(cHWND := "")
 		If (col_i = 1)
 		{
 			; Hidden dummy to measure hEdit for the whole table
-			Gui, %GUI_name%: Add, Text, % "Section xs BackgroundTrans Hidden Border HWNDhwnd x-1 y+" fHeight2/4 " w" width, % " "
+			Gui, %GUI_name%: Add, Text, % "Section xs BackgroundTrans Hidden Border HWNDhwnd x-1 y+0 w" width, % " "
 			ControlGetPos,, yEdit,, hEdit,, % "ahk_id " hwnd
 
 			; Search Edit (Section anchor for col 1) + X reset flush right
@@ -237,17 +299,21 @@ CurrencyCounter_Logs(cHWND := "")
 		If (header = "total")
 		{
 			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Border Center HWNDhwnd cC89B3C w" width, % CurrencyCounter_ComputeTotal()
-			vars.hwnd.cc_logs.total_value := hwnd
 			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Hidden HWNDhwnd w1 h1", % ""
+			vars.hwnd.cc_logs.total_value := hwnd
 		}
 		Else
 		{
 			Gui, %GUI_name%: Font, % "s" fSize2 - 2
-			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Center 0x200 HWNDhwnd w" width, % val.3.1
-			Gui, %GUI_name%: Add, Progress, % "xp yp wp h" fHeight3 " Border Disabled BackgroundBlack HWNDhwnd", 0
+			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Hidden HWNDhwnd w" width, % val.3.1
+			ControlGetPos,,, , textH,, % "ahk_id " hwnd
+			offset := Floor((fHeight3 - textH) / 2)
+			Gui, %GUI_name%: Add, Text, % "xp yp Border BackgroundTrans HWNDhwnd_border wp h" fHeight3, % ""
+			Gui, %GUI_name%: Add, Text, % "xp yp+" offset " BackgroundTrans Center 0x200 HWNDhwnd_col w" width, % val.3.1
+			Gui, %GUI_name%: Add, Progress, % "xp yp-" offset " wp h" fHeight3 " Disabled BackgroundBlack HWNDhwnd", 0
 			Gui, %GUI_name%: Font, % "s" fSize2 + 4
 		}
-		vars.hwnd.cc_logs["col_" header] := hwnd
+		vars.hwnd.cc_logs["col_" header] := hwnd_col
 
 		; ── Data rows ────────────────────────────────────────
 		Gui, %GUI_name%: Font, % "s" fSize2
@@ -262,13 +328,13 @@ CurrencyCounter_Logs(cHWND := "")
 			If (header = "name")
 				cell_text := " " name, color := "", gLabel := " gCurrencyCounter_Logs2"
 			Else If (header = "count")
-				cell_text := entry.count " ", color := "", gLabel := ""
+				cell_text := entry.count " ", color := "", gLabel := " gCurrencyCounter_Logs2"
 			Else If (header = "price")
-				cell_text := (entry.price != "") ? entry.price " " : "— ", color := " c" CurrencyCounter_PriceColor(entry.price_updated), gLabel := " gCurrencyCounter_Logs2"
+				cell_text := (entry.price != "") ? CurrencyCounter_FormatPrice(entry.price) : "—" . " ", color := " c" CurrencyCounter_PriceColor(entry.price_updated), gLabel := " gCurrencyCounter_Logs2"
 			Else If (header = "pc")
-				cell_text := " " CurrencyCounter_CurAbbr(entry.price_currency) " ", color := " c808080", gLabel := ""
+				cell_text := " " CurrencyCounter_CurAbbr(entry.price_currency) " ", color := " c808080", gLabel := " gCurrencyCounter_Logs2"
 			Else If (header = "ts")
-				cell_text := CurrencyCounter_FormatAge(entry.price_updated) " ", color := " c" CurrencyCounter_PriceColor(entry.price_updated), gLabel := ""
+				cell_text := CurrencyCounter_FormatAge(entry.price_updated) " ", color := " c" CurrencyCounter_PriceColor(entry.price_updated), gLabel := " gCurrencyCounter_Logs2"
 			Else If (header = "total")
 			{
 				If (entry.price != "" && entry.count > 0)
@@ -280,9 +346,9 @@ CurrencyCounter_Logs(cHWND := "")
 					color := " c808080", gLabel := ""
 			}
 
-			Gui, %GUI_name%: Add, Text, % "xs Border 0x200 BackgroundTrans HWNDhwnd0 " val.2 " w" width . gLabel . color " h" hFont, % cell_text
+			Gui, %GUI_name%: Add, Text, % "xs Border 0x200 BackgroundTrans " val.2 " w" width . gLabel . color " h" hFont, % cell_text
+			Gui, %GUI_name%: Add, Progress, % "xp yp w" width " hp Border Disabled Background" bg " HWNDhwnd0 ", 0
 			vars.hwnd.cc_logs[header "_" name] := hwnd0
-			Gui, %GUI_name%: Add, Progress, % "xp yp w" width " hp Border Disabled Background" bg " HWNDhwnd", 0
 		}
 
 		; Empty-state row (first column only)
@@ -294,9 +360,8 @@ CurrencyCounter_Logs(cHWND := "")
 	}
 
 	; ── Position & show ──────────────────────────────────────
-	Gui, %GUI_name%: Show, % "NA x10000 y10000"
-	WinGetPos,,, w, h, % "ahk_id " cc_logs
-	Gui, %GUI_name%: Show, % "NA x" vars.monitor.x + vars.client.xc - w/2 " y" vars.monitor.y + vars.monitor.h * 0.15
+	showPos := (vars.cc_logs.x != "") ? "x" vars.cc_logs.x " y" vars.cc_logs.y : "xCenter yCenter"
+	Gui, %GUI_name%: Show, % showPos " AutoSize", % "Currency Counter"
 	LLK_Overlay(cc_logs, "show", 0, GUI_name), LLK_Overlay(hwnd_old, "destroy")
 }
 
@@ -326,7 +391,7 @@ CurrencyCounter_Logs2(cHWND)
 	{
 		input := LLK_ControlGet(cHWND)
 		vars.cc_logs.keywords["name"] := input
-		GuiControl, % "+c" (Blank(input) ? "Black" : "Green"), % cHWND
+		GuiControl, % "+cBlack", % cHWND
 		GuiControl, movedraw, % cHWND
 		Return
 	}
@@ -364,7 +429,9 @@ CurrencyCounter_Logs2(cHWND)
 			}
 			KeyWait, LButton
 			WinGetPos, xPos, yPos, w, h, % "ahk_id " vars.hwnd.cc_logs.main
-			;TODO: save and set - vars.cc_logs.x := xPos, vars.cc_logs.y := yPos, vars.general.drag := 0
+			vars.cc_logs.x := xPos, vars.cc_logs.y := yPos, vars.general.drag := 0
+			IniWrite, % xPos, % "ini" vars.poe_version "\currency-counter.ini", settings, logs-x
+			IniWrite, % yPos, % "ini" vars.poe_version "\currency-counter.ini", settings, logs-y
 			Return
 		}
 		Return
@@ -373,10 +440,11 @@ CurrencyCounter_Logs2(cHWND)
 		CurrencyCounter_Logs()
 		Return
 
-	Case "display_cur_btn":
+	Case "display_cur_btn", "total_value":
 		KeyWait, LButton
 		order := ["chaos", "divine", "exalt"]
 		cur := settings.currency_counter.display_cur
+		next := order[2] ; default if cur not found
 		Loop, % order.Count()
 			If (order[A_Index] = cur)
 			{
@@ -444,6 +512,38 @@ CurrencyCounter_Logs2(cHWND)
 		currency_name := SubStr(check, 7)
 		If (vars.system.click = 1)
 			CurrencyCounter_PriceEdit(cHWND, currency_name)
+		Return
+	}
+
+	If InStr(check, "pc_")
+	{
+		name := SubStr(check, 4)
+		order := ["chaos", "divine", "exalt"]
+		cur := vars.currency_counter.currencies[name].price_currency
+		next := order[1]
+		Loop, % order.Count()
+			If (order[A_Index] = cur)
+			{
+				next := order[Mod(A_Index, order.Count()) + 1]
+				Break
+			}
+		vars.currency_counter.currencies[name].price_currency := next
+		CurrencyCounter_SaveCurrency(name)
+		CurrencyCounter_Logs()
+		Return
+	}
+
+	If InStr(check, "col_")
+	{
+		col := SubStr(check, 5)
+		If (vars.cc_logs.sort_col = col)
+			vars.cc_logs.sort_asc := !vars.cc_logs.sort_asc
+		Else
+		{
+			vars.cc_logs.sort_col := col
+			vars.cc_logs.sort_asc := 1
+		}
+		CurrencyCounter_Logs()
 		Return
 	}
 }
@@ -544,13 +644,22 @@ CurrencyCounter_PriceEdit(cHWND, currency_name)
 	Gui, %eName%: New, % "-DPIScale +LastFound -Caption +AlwaysOnTop +ToolWindow +E0x02000000 +E0x00080000 HWNDhwnd_edit"
 	Gui, %eName%: Color, 101010
 	Gui, %eName%: Margin, 1, 1
-	Gui, %eName%: Font, % "s" settings.currency_counter.fSize2 " cWhite", % vars.system.font
-	Gui, %eName%: Add, Edit, % "w" wCtrl - 2 " h" hCtrl - 2 " Background202020 HWNDhwnd_input", % (entry.price != "") ? entry.price : ""
+	Gui, %eName%: Font, % "s" settings.currency_counter.fSize2 " cBlack", % vars.system.font
+
+	; Determine initial display value: convert decimal to fraction (if price exists)
+	initialText := ""
+	if (entry.price != "" && IsNumber(entry.price))
+		initialText := CurrencyCounter_DecimalToFraction(entry.price + 0)
+	else
+		initialText := ""
+
+	Gui, %eName%: Add, Edit, % "w" wCtrl - 2 " h" hCtrl - 2 " Background202020 HWNDhwnd_input", % initialText
 	Gui, %eName%: Add, Button, % "Default Hidden gCurrencyCounter_PriceEditSave HWNDhwnd_ok", ok
 	vars.hwnd.cc_price_edit := {"main": hwnd_edit, "input": hwnd_input, "name": currency_name}
 	Gui, %eName%: Show, % "NA x" xCtrl " y" yCtrl
 	ControlFocus,, % "ahk_id " hwnd_input
-	ControlSend,, {End}, % "ahk_id " hwnd_input
+	; Select all text for easy replacement
+	ControlSend,, ^{a}, % "ahk_id " hwnd_input
 
 	While WinActive("ahk_id " hwnd_edit)
 		Sleep, 10
@@ -575,15 +684,75 @@ CurrencyCounter_PriceEditCommit()
 	If !hwnd || !cname
 		Return
 	raw := StrReplace(LLK_ControlGet(hwnd), ",", ".")
-	If IsNumber(raw) && (raw + 0 >= 0)
+	raw := Trim(raw)
+
+	; Check for fraction format "XX/YY"
+	If InStr(raw, "/")
 	{
-		vars.currency_counter.currencies[cname].price := raw + 0
-		vars.currency_counter.currencies[cname].price_updated := A_Now
-		CurrencyCounter_SaveCurrency(cname)
+		; Split numerator and denominator
+		parts := StrSplit(raw, "/")
+		If (parts.Length() = 2)
+		{
+			num := Trim(parts[1])
+			den := Trim(parts[2])
+			; Both must be numbers and denominator > 0
+			If IsNumber(num) && IsNumber(den) && (num + 0 > 0)
+			{
+				price := (den + 0) / (num + 0)
+				If (price >= 0)
+				{
+					vars.currency_counter.currencies[cname].price := price
+					vars.currency_counter.currencies[cname].price_updated := A_Now
+					CurrencyCounter_SaveCurrency(cname)
+				}
+			}
+		}
 	}
+	Else ; Decimal format
+	{
+		If IsNumber(raw) && (raw + 0 >= 0)
+		{
+			vars.currency_counter.currencies[cname].price := raw + 0
+			vars.currency_counter.currencies[cname].price_updated := A_Now
+			CurrencyCounter_SaveCurrency(cname)
+		}
+	}
+
 	vars.hwnd.cc_price_edit := {"main": "", "input": "", "name": ""}
 	CurrencyCounter_DrawBar()
 	CurrencyCounter_Logs()
+}
+
+; Convert decimal to closest fraction XX/YY with denominator up to maxDenom (default 100)
+CurrencyCounter_DecimalToFraction(decimal, maxDenom := 100)
+{
+	if (decimal = 0)
+		return "0/1"
+	bestNum := 0, bestDenom := 1, bestError := Abs(decimal)
+	Loop % maxDenom
+	{
+		denom := A_Index
+		num := Round(decimal * denom)
+		error := Abs(decimal - num/denom)
+		if (error < bestError)
+		{
+			bestError := error
+			bestNum := num
+			bestDenom := denom
+		}
+	}
+	; Simplify by GCD
+	g := CurrencyCounter_GCD(bestNum, bestDenom)
+	bestNum //= g
+	bestDenom //= g
+	return bestDenom "/" bestNum
+}
+
+CurrencyCounter_GCD(a, b)
+{
+	while b
+		t := b, b := Mod(a, b), a := t
+	return Abs(a)
 }
 
 ; ──────────────────────────────────────────────────────────────
@@ -593,10 +762,10 @@ CurrencyCounter_PriceAgeHours(ts)
 {
 	local
 	If !ts || !IsNumber(ts)
-		Return 9999
-	now := A_Now
-	EnvSub, now, % ts, Hours
-	Return Abs(now)
+		Return 0
+	diff := A_Now
+	EnvSub, diff, % ts, minutes
+	Return diff / 60
 }
 
 CurrencyCounter_PriceColor(ts)
@@ -663,5 +832,30 @@ CurrencyCounter_ComputeTotal()
 
 CurrencyCounter_ShiftCarousel() {
 
+}
+
+; Format a number to show at most 4 decimal places, removing trailing zeros
+CurrencyCounter_FormatPrice(price)
+{
+	if (price = "")
+		return ""
+	; Round to 4 decimal places
+	rounded := Round(price, 4)
+	; Convert to string and trim trailing zeros and decimal point if needed
+	str := rounded + 0.0 ; force numeric then string conversion
+	; Remove trailing zeros after decimal
+	if InStr(str, ".")
+	{
+		while SubStr(str, 0) = "0"
+			str := SubStr(str, 1, -1)
+		if SubStr(str, 0) = "."
+			str := SubStr(str, 1, -1)
+	}
+	return str
+}
+
+CurrencyCounter_SortCount(asc, a, b)
+{
+	Return asc ? (a.entry.count - b.entry.count) : (b.entry.count - a.entry.count)
 }
 

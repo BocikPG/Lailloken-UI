@@ -113,6 +113,11 @@ Init_currency_counter()
     settings.currency_counter.sessions := IsObject(check := Json.Load(raw)) ? check : {}
     settings.currency_counter.active := !Blank(check := ini.settings["active"]) ? check : 0
 
+    settings.currency_counter.bar_x := !Blank(check := ini.settings["bar-x"]) ? check : ""
+    settings.currency_counter.bar_y := !Blank(check := ini.settings["bar-y"]) ? check : ""
+    settings.currency_counter.logs_x := !Blank(check := ini.settings["logs-x"]) ? check : ""
+    settings.currency_counter.logs_y := !Blank(check := ini.settings["logs-y"]) ? check : ""
+
     LLK_FontDimensions(settings.currency_counter.fSize, height, width)
     settings.currency_counter.fHeight := height
     settings.currency_counter.fWidth := width
@@ -121,11 +126,12 @@ Init_currency_counter()
     vars.currency_counter := {"picked": 0, "name": "", "last_used": "", "currencies": {}, "session_name": "", "session_img": "", "drop_on_shift_release": 0, "shift_timer": 0}
     vars.hwnd.currency_counter := {"main": "", "drag": ""}
     vars.hwnd.currency_counter_table := {"main": ""}
+    vars.cc_logs := {"sort_col": "", "sort_asc": 1, "x": settings.currency_counter.logs_x, "y": settings.currency_counter.logs_y}
 
     ; Cache icon image (placeholder path – replace with real asset)
     If FileExist("img\GUI\currency\blessed.png")
         vars.pics.currency_counter := {"icon": LLK_ImageCache("img\GUI\currency\blessed.png")}
-    Else 
+    Else
         vars.pics.currency_counter := {"icon": ""}
     If !Blank(settings.currency_counter.active)
     {
@@ -188,7 +194,7 @@ CurrencyCounter_SetActive(id)
     }
 
     CurrencyCounter_LoadSession(id)
-    
+
     settings.currency_counter.active := id
     IniWrite, % id, % "ini" vars.poe_version "\currency-counter.ini", settings, active
     vars.currency_counter.picked := 0, vars.currency_counter.name := ""
@@ -239,7 +245,6 @@ CurrencyCounter_SaveCurrency(currency_name)
     If !IsObject(Json)
         Json := new JSON()
 
-    
     id := settings.currency_counter.active
     If Blank(id) || Blank(currency_name)
         Return

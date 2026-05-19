@@ -508,7 +508,7 @@ LButton::CurrencyCounter_Logs()
 LButton::CurrencyCounter_Click(1)
 RButton::CurrencyCounter_Click(2)
 
-#If vars.hwnd.cc_logs.main && (vars.general.wMouse = vars.hwnd.cc_logs.main)
+#If vars.hwnd.cc_logs.main && (vars.general.wMouse = vars.hwnd.cc_logs.main) && (vars.general.cMouse != vars.hwnd.cc_logs.name_edit) && (vars.general.cMouse != vars.hwnd.cc_logs.search_name)
 LButton::CurrencyCounter_Logs2(vars.general.cMouse)
 
 #If settings.features.currency_counter && (vars.general.wMouse = vars.hwnd.poe_client)
