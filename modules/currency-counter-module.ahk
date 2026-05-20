@@ -118,6 +118,11 @@ Init_currency_counter()
     settings.currency_counter.logs_x := !Blank(check := ini.settings["logs-x"]) ? check : ""
     settings.currency_counter.logs_y := !Blank(check := ini.settings["logs-y"]) ? check : ""
 
+    settings.currency_counter.chaos_div := !Blank(check := ini.settings["chaos-div"]) ? check + 0 : 1
+    settings.currency_counter.exalt_div := !Blank(check := ini.settings["exalt-div"]) ? check + 0 : 1
+    settings.currency_counter.chaos_div_updated := !Blank(check := ini.settings["chaos-div-updated"]) ? check : 0
+    settings.currency_counter.exalt_div_updated := !Blank(check := ini.settings["exalt-div-updated"]) ? check : 0
+
     LLK_FontDimensions(settings.currency_counter.fSize, height, width)
     settings.currency_counter.fHeight := height
     settings.currency_counter.fWidth := width

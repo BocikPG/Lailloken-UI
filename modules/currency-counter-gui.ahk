@@ -240,15 +240,42 @@ CurrencyCounter_Logs(cHWND := "")
 	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cRed HWNDhwnd range0-500", 0
 	vars.hwnd.cc_logs.del_prog := hwnd
 
+	pickerImgSize := imgSize * 1.5
+
 	; ── Currency picker (only if not SSF) – placed at far right edge ──
 	If !ssf
 	{
 		pickerWidth := totalColWidth
-		; Absolute X coordinate: right edge minus picker width
 		pickerX := totalWidth - pickerWidth - table.Count() + 1
-		Gui, %GUI_name%: Add, Text, % "yp x" pickerX " Border 0x200 Center cC89B3C w" pickerWidth " h" imgSize, % " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur) " "
+		halfH := imgSize
+		colW := halfH
+		midW := pickerWidth - colW * 2
+
+		; ── Row 1: chaos → divine ─────────────────────────────
+		tsC := settings.currency_counter.chaos_div_updated
+		colorC := " c" (Blank(tsC) ? "808080" : CurrencyCounter_PriceColor(tsC))
+
+		Gui, %GUI_name%: Add, Text, % "x" pickerX " yp-" pickerImgSize - imgSize " Border 0x200 Center cC89B3C w" colW " h" halfH, % "c"
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
-		vars.hwnd.cc_logs.display_cur_btn := hwnd
+		Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center gCurrencyCounter_Logs2 HWNDhwnd" colorC " w" midW " h" halfH, % CurrencyCounter_DecimalToFraction(settings.currency_counter.chaos_div,1000)
+		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
+		vars.hwnd.cc_logs.ratio_chaos_btn := hwnd
+		Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center cC89B3C w" colW " h" halfH, % "d"
+		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
+
+		; ── Row 2: exalt → divine ─────────────────────────────
+		tsE := settings.currency_counter.exalt_div_updated
+		colorE := " c" (Blank(tsE) ? "808080" : CurrencyCounter_PriceColor(tsE))
+
+		; Force new row by stepping down from picker start
+		Gui, %GUI_name%: Add, Text, % "x" pickerX " y+-1 Border 0x200 Center cC89B3C w" colW " h" halfH, % "e"
+		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Disabled Background1A1A1A HWNDhwnd", 0
+		Gui, %GUI_name%: Add, Text, % "x" pickerX + colW - 1 " yp Border 0x200 Center gCurrencyCounter_Logs2 HWNDhwnd" colorE " w" midW " h" halfH, % CurrencyCounter_DecimalToFraction(settings.currency_counter.exalt_div,1000)
+		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Disabled Background1A1A1A HWNDhwnd", 0
+		vars.hwnd.cc_logs.ratio_exalt_btn := hwnd
+		Gui, %GUI_name%: Add, Text, % "x" pickerX + colW + midW - 2 " yp Border 0x200 Center cC89B3C w" colW " h" halfH, % "d"
+		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Disabled Background1A1A1A HWNDhwnd", 0
+
 	}
 	; ══════════════════════════════════════════════════════════
 	;  TABLE  – search, headers, data rows
@@ -271,7 +298,8 @@ CurrencyCounter_Logs(cHWND := "")
 		If (col_i = 1)
 		{
 			; Hidden dummy to measure hEdit for the whole table
-			Gui, %GUI_name%: Add, Text, % "Section xs BackgroundTrans Hidden Border HWNDhwnd x-1 y+0 w" width, % " "
+			yOffset := ssf ? 0 : -(pickerImgSize - imgSize)
+			Gui, %GUI_name%: Add, Text, % "Section xs BackgroundTrans Hidden Border HWNDhwnd x-1 y+" yOffset " w" width, % " "
 			ControlGetPos,, yEdit,, hEdit,, % "ahk_id " hwnd
 
 			; Search Edit (Section anchor for col 1) + X reset flush right
@@ -299,8 +327,8 @@ CurrencyCounter_Logs(cHWND := "")
 		If (header = "total")
 		{
 			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Border Center HWNDhwnd cC89B3C w" width, % CurrencyCounter_ComputeTotal()
-			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Hidden HWNDhwnd w1 h1", % ""
 			vars.hwnd.cc_logs.total_value := hwnd
+			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Hidden HWNDhwnd w1 h1", % ""
 		}
 		Else
 		{
@@ -459,6 +487,16 @@ CurrencyCounter_Logs2(cHWND)
 	Case "session_img":
 		KeyWait, LButton
 		; TODO: image picker
+		Return
+
+	Case "ratio_chaos_btn":
+		KeyWait, LButton
+		CurrencyCounter_RatioEdit(cHWND, "chaos")
+		Return
+
+	Case "ratio_exalt_btn":
+		KeyWait, LButton
+		CurrencyCounter_RatioEdit(cHWND, "exalt")
 		Return
 
 	Case "add_session":
@@ -800,23 +838,23 @@ CurrencyCounter_CurAbbr(id)
 CurrencyCounter_ToChaos(price, price_currency)
 {
 	local
-	global settings
-	If (price = "" || price = 0)
-		Return 0
-	rate := (price_currency = "divine") ? (IsNumber(settings.exchange.chaos_div) ? settings.exchange.chaos_div : 250)
-		: (price_currency = "exalt") ? (IsNumber(settings.exchange.exalt_div) ? settings.exchange.exalt_div : 180)
+	If (price_currency = "chaos")
+		Return price
+	rate := (price_currency = "divine") ? settings.currency_counter.chaos_div
+		: (price_currency = "exalt") ? settings.currency_counter.exalt_div
 		: 1
-	Return price * rate
+	Return (rate > 0) ? price / rate : 0
 }
 
 CurrencyCounter_FromChaos(chaos, target)
 {
 	local
-	global settings
-	rate := (target = "divine") ? (IsNumber(settings.exchange.chaos_div) ? settings.exchange.chaos_div : 250)
-		: (target = "exalt") ? (IsNumber(settings.exchange.exalt_div) ? settings.exchange.exalt_div : 180)
+	If (target = "chaos")
+		Return chaos
+	rate := (target = "divine") ? settings.currency_counter.chaos_div
+		: (target = "exalt") ? settings.currency_counter.exalt_div
 		: 1
-	Return (rate > 0) ? chaos / rate : 0
+	Return (rate > 0) ? chaos * rate : 0
 }
 
 CurrencyCounter_ComputeTotal()
@@ -859,3 +897,88 @@ CurrencyCounter_SortCount(asc, a, b)
 	Return asc ? (a.entry.count - b.entry.count) : (b.entry.count - a.entry.count)
 }
 
+CurrencyCounter_RatioEdit(cHWND, which)
+{
+	local
+	global vars, settings
+	static toggle := 0
+
+	KeyWait, LButton
+	WinGetPos, xCtrl, yCtrl, wCtrl, hCtrl, % "ahk_id " cHWND
+
+	toggle := !toggle, eName := "cc_ratio_edit" toggle
+	Gui, %eName%: New, % "-DPIScale +LastFound -Caption +AlwaysOnTop +ToolWindow +E0x02000000 +E0x00080000 HWNDhwnd_edit"
+	Gui, %eName%: Color, 101010
+	Gui, %eName%: Margin, 1, 1
+	Gui, %eName%: Font, % "s" settings.currency_counter.fSize2 " cBlack", % vars.system.font
+
+	initialText := (which = "chaos") ? settings.currency_counter.chaos_div : settings.currency_counter.exalt_div
+	Gui, %eName%: Add, Edit, % "w" wCtrl - 2 " h" hCtrl - 2 " Background202020 HWNDhwnd_input", % initialText
+	Gui, %eName%: Add, Button, % "Default Hidden gCurrencyCounter_RatioEditSaveBtn HWNDhwnd_ok", ok
+	vars.hwnd.cc_ratio_edit := {"main": hwnd_edit, "input": hwnd_input, "which": which}
+	Gui, %eName%: Show, % "NA x" xCtrl " y" yCtrl
+	ControlFocus,, % "ahk_id " hwnd_input
+	ControlSend,, ^{a}, % "ahk_id " hwnd_input
+
+	While WinActive("ahk_id " hwnd_edit)
+		Sleep, 10
+
+	; Read value BEFORE destroying
+	raw := Trim(LLK_ControlGet(hwnd_input))
+	CurrencyCounter_RatioEditCommit(raw)
+	Gui, %eName%: Destroy
+}
+
+CurrencyCounter_RatioEditSaveBtn:
+	raw := Trim(LLK_ControlGet(vars.hwnd.cc_ratio_edit.input))
+	CurrencyCounter_RatioEditCommit(raw)
+	Gui, cc_ratio_edit1: Destroy
+	Gui, cc_ratio_edit2: Destroy
+Return
+
+CurrencyCounter_RatioEditCommit(raw)
+{
+	local
+	global vars, settings
+
+	which := vars.hwnd.cc_ratio_edit.which
+	If !which
+		Return
+	raw := Trim(raw)
+
+	; Parse XX/YY fraction format
+	If InStr(raw, "/")
+	{
+		parts := StrSplit(raw, "/")
+		If (parts.Length() = 2 && IsNumber(Trim(parts[1])) && IsNumber(Trim(parts[2])) && (Trim(parts[2]) + 0 > 0))
+			val := (Trim(parts[2]) + 0) / (Trim(parts[1]) + 0)
+		Else
+		{
+			vars.hwnd.cc_ratio_edit := {"main": "", "input": "", "which": ""}
+			Return
+		}
+	}
+	Else If IsNumber(raw) && (raw + 0 > 0)
+		val := 1 / (raw + 0)
+	Else
+	{
+		vars.hwnd.cc_ratio_edit := {"main": "", "input": "", "which": ""}
+		Return
+	}
+	If (which = "chaos")
+	{
+		settings.currency_counter.chaos_div := val
+		settings.currency_counter.chaos_div_updated := A_Now
+		IniWrite, % val, % "ini" vars.poe_version "\currency-counter.ini", settings, chaos-div
+		IniWrite, % A_Now, % "ini" vars.poe_version "\currency-counter.ini", settings, chaos-div-updated
+	}
+	Else
+	{
+		settings.currency_counter.exalt_div := val
+		settings.currency_counter.exalt_div_updated := A_Now
+		IniWrite, % val, % "ini" vars.poe_version "\currency-counter.ini", settings, exalt-div
+		IniWrite, % A_Now, % "ini" vars.poe_version "\currency-counter.ini", settings, exalt-div-updated
+	}
+	vars.hwnd.cc_ratio_edit := {"main": "", "input": "", "which": ""}
+	CurrencyCounter_Logs()
+}
