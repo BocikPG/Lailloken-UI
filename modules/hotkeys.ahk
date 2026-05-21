@@ -501,6 +501,10 @@ RButton::Sanctum_Relics("click")
 *~SC038::Sanctum_Relics("trans")
 
 ;── Currency Counter ──────────────────────────────────────────
+#If vars.hwnd.cc_logs.main && (vars.general.wMouse = vars.hwnd.cc_logs.main) && (vars.general.cMouse != vars.hwnd.cc_logs.name_edit) && (vars.general.cMouse != vars.hwnd.cc_logs.search_name)
+WheelUp::CurrencyCounter_ShiftCarousel("up")
+WheelDown::CurrencyCounter_ShiftCarousel("down")
+
 #If settings.features.currency_counter && vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main)
 LButton::CurrencyCounter_Logs()
 

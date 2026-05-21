@@ -85,7 +85,11 @@ CurrencyCounter_Logs(cHWND := "")
 				If (col = "count")
 					swap := asc ? a.entry.count > b.entry.count : a.entry.count < b.entry.count
 				Else If (col = "price")
-					swap := asc ? a.entry.price > b.entry.price : a.entry.price < b.entry.price
+				{
+					chaosA := CurrencyCounter_ToChaos(a.entry.price, a.entry.price_currency)
+					chaosB := CurrencyCounter_ToChaos(b.entry.price, b.entry.price_currency)
+					swap := asc ? chaosA > chaosB : chaosA < chaosB
+				}
 				Else If (col = "name")
 					swap := asc ? a.name > b.name : a.name < b.name
 				Else If (col = "ts")
@@ -225,7 +229,7 @@ CurrencyCounter_Logs(cHWND := "")
 
 	; ── Name edit field ───────────────────────────────────────
 	editWidth := fWidth2 * 16
-	Gui, %GUI_name%: Add, Edit, % "ys yp cBlack gCurrencyCounter_Logs2 HWNDhwnd_name_edit w" editWidth " h" imgSize, % vars.currency_counter.session_name
+	Gui, %GUI_name%: Add, Edit, % "ys yp cBlack gCurrencyCounter_Logs2 HWNDhwnd_name_edit w" editWidth " h" imgSize, % settings.currency_counter.sessions[active_id].name
 	vars.hwnd.cc_logs.name_edit := hwnd_name_edit
 
 	; ── Accept button (X) with progress bar ───────────────────
@@ -365,13 +369,17 @@ CurrencyCounter_Logs(cHWND := "")
 				cell_text := CurrencyCounter_FormatAge(entry.price_updated) " ", color := " c" CurrencyCounter_PriceColor(entry.price_updated), gLabel := " gCurrencyCounter_Logs2"
 			Else If (header = "total")
 			{
-				If (entry.price != "" && entry.count > 0)
+				If (entry.price > 0 && entry.count > 0)
 				{
 					chaos := CurrencyCounter_ToChaos(entry.price, entry.price_currency) * entry.count
 					cell_text := Round(CurrencyCounter_FromChaos(chaos, settings.currency_counter.display_cur), 1) " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur) " "
+					color := " cC89B3C", gLabel := ""
 				}
-				Else cell_text := "— "
+				Else
+				{
+					cell_text := "— "
 					color := " c808080", gLabel := ""
+				}
 			}
 
 			Gui, %GUI_name%: Add, Text, % "xs Border 0x200 BackgroundTrans " val.2 " w" width . gLabel . color " h" hFont, % cell_text
@@ -390,6 +398,9 @@ CurrencyCounter_Logs(cHWND := "")
 	; ── Position & show ──────────────────────────────────────
 	showPos := (vars.cc_logs.x != "") ? "x" vars.cc_logs.x " y" vars.cc_logs.y : "xCenter yCenter"
 	Gui, %GUI_name%: Show, % showPos " AutoSize", % "Currency Counter"
+	; Redirect focus to a non-interactive control so the name Edit
+	; doesn't steal keyboard input on every redraw.
+	ControlFocus,, % "ahk_id " vars.hwnd.cc_logs.dragbar
 	LLK_Overlay(cc_logs, "show", 0, GUI_name), LLK_Overlay(hwnd_old, "destroy")
 }
 
@@ -468,7 +479,7 @@ CurrencyCounter_Logs2(cHWND)
 		CurrencyCounter_Logs()
 		Return
 
-	Case "display_cur_btn", "total_value":
+	Case "total_value":
 		KeyWait, LButton
 		order := ["chaos", "divine", "exalt"]
 		cur := settings.currency_counter.display_cur
@@ -838,23 +849,27 @@ CurrencyCounter_CurAbbr(id)
 CurrencyCounter_ToChaos(price, price_currency)
 {
 	local
+	global vars, settings
 	If (price_currency = "chaos")
 		Return price
-	rate := (price_currency = "divine") ? settings.currency_counter.chaos_div
-		: (price_currency = "exalt") ? settings.currency_counter.exalt_div
-		: 1
-	Return (rate > 0) ? price / rate : 0
+	If (price_currency = "divine")
+		Return (settings.currency_counter.chaos_div > 0) ? price / settings.currency_counter.chaos_div : 0
+	If (price_currency = "exalt")
+		Return (vars.currency_counter.exalt_chaos_rate > 0) ? price * vars.currency_counter.exalt_chaos_rate : 0
+	Return price
 }
 
 CurrencyCounter_FromChaos(chaos, target)
 {
 	local
+	global vars, settings
 	If (target = "chaos")
 		Return chaos
-	rate := (target = "divine") ? settings.currency_counter.chaos_div
-		: (target = "exalt") ? settings.currency_counter.exalt_div
-		: 1
-	Return (rate > 0) ? chaos * rate : 0
+	If (target = "divine")
+		Return chaos * settings.currency_counter.chaos_div
+	If (target = "exalt")
+		Return (vars.currency_counter.exalt_chaos_rate > 0) ? chaos / vars.currency_counter.exalt_chaos_rate : 0
+	Return chaos
 }
 
 CurrencyCounter_ComputeTotal()
@@ -868,8 +883,28 @@ CurrencyCounter_ComputeTotal()
 	Return Round(CurrencyCounter_FromChaos(chaos, settings.currency_counter.display_cur), 1) " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur)
 }
 
-CurrencyCounter_ShiftCarousel() {
+CurrencyCounter_ShiftCarousel(direction)
+{
+	local
+	global vars, settings
 
+	; Only act when mouse is over a session tab
+	check := LLK_HasVal(vars.hwnd.cc_logs, vars.general.cMouse)
+	If !InStr(check, "tab_")
+		Return
+
+	maxIndex := settings.currency_counter.sessions.Count() - settings.currency_counter.visibleCount
+
+	idx := vars.currency_counter.carousel_index
+	idx += (direction = "up") ? -1 : 1
+	if (idx < 0)
+		vars.currency_counter.carousel_index := 0
+	else if (idx > maxIndex)
+		vars.currency_counter.carousel_index := maxIndex
+	else
+		vars.currency_counter.carousel_index := idx
+
+	CurrencyCounter_Logs()
 }
 
 ; Format a number to show at most 4 decimal places, removing trailing zeros
@@ -912,7 +947,8 @@ CurrencyCounter_RatioEdit(cHWND, which)
 	Gui, %eName%: Margin, 1, 1
 	Gui, %eName%: Font, % "s" settings.currency_counter.fSize2 " cBlack", % vars.system.font
 
-	initialText := (which = "chaos") ? settings.currency_counter.chaos_div : settings.currency_counter.exalt_div
+	storedVal := (which = "chaos") ? settings.currency_counter.chaos_div : settings.currency_counter.exalt_div
+	initialText := (storedVal > 0) ? CurrencyCounter_DecimalToFraction(storedVal, 1000) : ""
 	Gui, %eName%: Add, Edit, % "w" wCtrl - 2 " h" hCtrl - 2 " Background202020 HWNDhwnd_input", % initialText
 	Gui, %eName%: Add, Button, % "Default Hidden gCurrencyCounter_RatioEditSaveBtn HWNDhwnd_ok", ok
 	vars.hwnd.cc_ratio_edit := {"main": hwnd_edit, "input": hwnd_input, "which": which}
@@ -980,5 +1016,15 @@ CurrencyCounter_RatioEditCommit(raw)
 		IniWrite, % A_Now, % "ini" vars.poe_version "\currency-counter.ini", settings, exalt-div-updated
 	}
 	vars.hwnd.cc_ratio_edit := {"main": "", "input": "", "which": ""}
+	CurrencyCounter_UpdateExaltRate()
 	CurrencyCounter_Logs()
+}
+
+CurrencyCounter_UpdateExaltRate()
+{
+	local
+	global vars, settings
+	vars.currency_counter.exalt_chaos_rate := (settings.currency_counter.chaos_div > 0 && settings.currency_counter.exalt_div > 0)
+		? settings.currency_counter.exalt_div / settings.currency_counter.chaos_div
+		: 1
 }

@@ -5728,19 +5728,6 @@ Settings_currency_counter()
     Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "+"
     vars.hwnd.settings.currency_counter_fplus := hwnd
 
-    ; Read-only counter preview
-    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing, % "Counted so far:"
-    counters := vars.currency_counter.currencies
-    If IsObject(counters) && counters.Count()
-        For name, entry in counters
-            Gui, %GUI%: Add, Text, % "xs Section", % " " name ": " entry.count
-    Else
-        Gui, %GUI%: Add, Text, % "xs Section", % " (none yet)"
-
-    ; Reset button
-    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing " Border Center gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*6, % " Reset Counters "
-    vars.hwnd.settings.currency_counter_reset := hwnd
-
 }
 
 Settings_currency_counter2(cHWND)
@@ -5767,6 +5754,8 @@ Settings_currency_counter2(cHWND)
         IniWrite, % (settings.currency_counter.ssf := LLK_ControlGet(cHWND))
             , % "ini" vars.poe_version "\currency-counter.ini", settings, ssf mode
         Settings_menu("currency-counter")
+		If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+        	CurrencyCounter_Logs()
         Return
     }
     If (cHWND = vars.hwnd.settings.currency_counter_fminus) || (cHWND = vars.hwnd.settings.currency_counter_fplus)
@@ -5778,15 +5767,8 @@ Settings_currency_counter2(cHWND)
         settings.currency_counter.fWidth  := w
         IniWrite, % settings.currency_counter.fSize, % "ini" vars.poe_version "\currency-counter.ini", settings, font-size
         Settings_menu("currency-counter")
-        Return
-    }
-    If (cHWND = vars.hwnd.settings.currency_counter_reset)
-    {
-        vars.currency_counter.currencies := {}
-        IniWrite, % """" Json.Dump(vars.currency_counter.currencies) """", % "ini" vars.poe_version "\currency-counter.ini", % "session_" settings.currency_counter.active "_currencies", counters
-        LLK_Overlay(vars.hwnd.currency_counter.main, "destroy")
-        vars.hwnd.currency_counter := {"main": "", "drag": ""}
-        Settings_menu("currency-counter")
+		If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+        	CurrencyCounter_Logs()
         Return
     }
 }

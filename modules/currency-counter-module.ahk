@@ -118,6 +118,8 @@ Init_currency_counter()
     settings.currency_counter.logs_x := !Blank(check := ini.settings["logs-x"]) ? check : ""
     settings.currency_counter.logs_y := !Blank(check := ini.settings["logs-y"]) ? check : ""
 
+    settings.currency_counter.display_cur := !Blank(check := ini.settings["display-currency"]) ? check : "divine"
+
     settings.currency_counter.chaos_div := !Blank(check := ini.settings["chaos-div"]) ? check + 0 : 1
     settings.currency_counter.exalt_div := !Blank(check := ini.settings["exalt-div"]) ? check + 0 : 1
     settings.currency_counter.chaos_div_updated := !Blank(check := ini.settings["chaos-div-updated"]) ? check : 0
@@ -131,7 +133,9 @@ Init_currency_counter()
     vars.currency_counter := {"picked": 0, "name": "", "last_used": "", "currencies": {}, "session_name": "", "session_img": "", "drop_on_shift_release": 0, "shift_timer": 0}
     vars.hwnd.currency_counter := {"main": "", "drag": ""}
     vars.hwnd.currency_counter_table := {"main": ""}
-    vars.cc_logs := {"sort_col": "", "sort_asc": 1, "x": settings.currency_counter.logs_x, "y": settings.currency_counter.logs_y}
+    vars.cc_logs := {"sort_col": "", "sort_asc": 1, "x": settings.currency_counter.logs_x, "y": settings.currency_counter.logs_y, "keywords": {}}
+
+    CurrencyCounter_UpdateExaltRate()
 
     ; Cache icon image (placeholder path – replace with real asset)
     If FileExist("img\GUI\currency\blessed.png")
@@ -185,6 +189,10 @@ CurrencyCounter_NewSession()
     settings.currency_counter.sessions[id] := { name : name , img : ""}
     CurrencyCounter_SaveIndex()
     CurrencyCounter_SetActive(id)
+    CurrencyCounter_ShiftCarousel("down")
+
+    If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+        CurrencyCounter_Logs()
 }
 
 CurrencyCounter_SetActive(id)
@@ -312,6 +320,8 @@ CurrencyCounter_RClick()
     ; Pick currency from item under cursor
     name := CurrencyCounter_ReadItemName()
     If Blank(name)
+        Return
+    If InStr(name, "Omen")
         Return
     vars.currency_counter.picked := 1
     vars.currency_counter.name := name
@@ -478,6 +488,8 @@ CurrencyCounter_Click(hotkey)
         }
         Return
     }
+    Else
+        ControlFocus,, % "ahk_id " vars.hwnd.cc_logs.dragbar
 }
 
 ; ──────────────────────────────────────────────────────────────
