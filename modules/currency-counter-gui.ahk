@@ -234,15 +234,15 @@ CurrencyCounter_Logs(cHWND := "")
 
 	; ── Accept button (X) with progress bar ───────────────────
 	accSize := imgSize
-	Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center c41BB1C w" accSize " h" accSize, % " + "
+	Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center c41BB1C gCurrencyCounter_Logs2 HWNDhwnd w" accSize " h" accSize, % " + "
 	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cRed HWNDhwnd range0-500", 0
-	vars.hwnd.cc_logs.accept_prog := hwnd
+	vars.hwnd.cc_logs.accept_btn := hwnd
 
 	; ── Delete button (X) with progress bar ───────────────────
 	delSize := accSize / 2
-	Gui, %GUI_name%: Add, Text, % "x+" delSize /2 " ys+" delSize /2 "yp Border 0x200 Center cCC3333 w" delSize " h" delSize, % "X"
+	Gui, %GUI_name%: Add, Text, % "x+" delSize /2 " ys+" delSize /2 "yp Border 0x200 Center cCC3333 gCurrencyCounter_Logs2 HWNDhwnd w" delSize " h" delSize, % "X"
 	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cRed HWNDhwnd range0-500", 0
-	vars.hwnd.cc_logs.del_prog := hwnd
+	vars.hwnd.cc_logs.del_btn := hwnd
 
 	pickerImgSize := imgSize * 1.5
 
@@ -306,10 +306,12 @@ CurrencyCounter_Logs(cHWND := "")
 			Gui, %GUI_name%: Add, Text, % "Section xs BackgroundTrans Hidden Border HWNDhwnd x-1 y+" yOffset " w" width, % " "
 			ControlGetPos,, yEdit,, hEdit,, % "ahk_id " hwnd
 
-			; Search Edit (Section anchor for col 1) + X reset flush right
-			; Search Edit (Section anchor for col 1) + X reset flush right
-			Gui, %GUI_name%: Add, Edit, % "xs+1 Section cBlack gCurrencyCounter_Logs2 HWNDhwnd_search w" width - hEdit " h" hEdit (!Blank(pCheck := vars.cc_logs.keywords["name"]) ? " cGreen" : ""), % pCheck
+			; Search Edit (Section anchor for col 1) + add-currency + X reset flush right
+			; Search Edit (Section anchor for col 1) + add-currency + X reset flush right
+			Gui, %GUI_name%: Add, Edit, % "xs+1 Section cBlack gCurrencyCounter_Logs2 HWNDhwnd_search w" width - hEdit * 2 " h" hEdit (!Blank(pCheck := vars.cc_logs.keywords["name"]) ? " cGreen" : ""), % pCheck
 			vars.hwnd.cc_logs.search_name := hwnd_search
+			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center gCurrencyCounter_Logs2 HWNDhwnd c41BB1C 0x200 x+0 w" hEdit " h" hEdit, % "+"
+			vars.hwnd.cc_logs.add_currency_btn := hwnd
 			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center gCurrencyCounter_Logs2 HWNDhwnd cRed 0x200 x+0 w" hEdit " h" hEdit, % "X"
 			vars.hwnd.cc_logs.filter_reset := hwnd
 		}
@@ -447,6 +449,35 @@ CurrencyCounter_Logs2(cHWND)
 		vars.hwnd.cc_logs := {"main": ""}
 		Return
 
+	Case "add_currency_btn":
+		KeyWait, LButton
+		static add_cur_confirm := 0, add_cur_confirm_ts := 0
+		GuiControlGet, label,, % vars.hwnd.cc_logs.search_name
+		label := Format("{:U}", Trim(label))
+		If (label == "")
+			Return
+		If add_cur_confirm && (A_TickCount - add_cur_confirm_ts > 3000)
+			add_cur_confirm := 0
+		If !add_cur_confirm
+		{
+			add_cur_confirm := 1, add_cur_confirm_ts := A_TickCount
+			LLK_ToolTip("Are you sure you want to add """ label """ as a new currency?", 3,,,, "Yellow")
+			Return
+		}
+		add_cur_confirm := 0, add_cur_confirm_ts := 0
+		If !IsObject(vars.currency_counter.currencies[label])
+		{
+			vars.currency_counter.currencies[label] := {"count": 1, "price": 0.0, "price_currency": "chaos", "price_updated": 0}
+			CurrencyCounter_SaveCurrency(label)
+		}
+		Else If (vars.currency_counter.currencies[label].count = 0)
+		{
+			vars.currency_counter.currencies[label].count := 1
+			CurrencyCounter_SaveCurrency(label)
+		}
+		CurrencyCounter_Logs()
+		Return
+
 	Case "filter_reset":
 		KeyWait, LButton
 		KeyWait, RButton
@@ -516,29 +547,55 @@ CurrencyCounter_Logs2(cHWND)
 		CurrencyCounter_Logs()
 		Return
 
-	Case "del_btn":
-		start := A_TickCount
-		While GetKeyState("LButton", "P")
+	Case "accept_btn":
+		KeyWait, LButton
+		GuiControlGet, newName,, % vars.hwnd.cc_logs.name_edit
+		newName := Trim(newName)
+		If !Blank(newName)
 		{
-			elapsed := A_TickCount - start
-			pct := Min(500, Round(elapsed / 3000 * 500))
-			GuiControl,, % vars.hwnd.cc_logs.del_prog, % pct
-			If (elapsed >= 3000)
-			{
-				KeyWait, LButton
-				GuiControl,, % vars.hwnd.cc_logs.del_prog, 0
-				If settings.currency_counter.sessions.Count() <= 1
-				{
-					LLK_ToolTip("Cannot delete the only session.", 2,,,, "Red")
-					Return
-				}
-				CurrencyCounter_DeleteSession(settings.currency_counter.active)
-				CurrencyCounter_Logs()
-				Return
-			}
-			Sleep, 30
+			settings.currency_counter.sessions[settings.currency_counter.active].name := newName
+			CurrencyCounter_SaveIndex()
 		}
-		GuiControl,, % vars.hwnd.cc_logs.del_prog, 0
+		; Unfocus the edit by stealing focus to a non-interactive control
+		ControlFocus,, % "ahk_id " vars.hwnd.cc_logs.dragbar
+		CurrencyCounter_Logs()
+		Return
+
+	Case "del_btn":
+		KeyWait, LButton
+		static del_confirm := 0, del_confirm_ts := 0
+		If settings.currency_counter.sessions.Count() <= 1
+		{
+			LLK_ToolTip("Cannot delete the only session.", 2,,,, "Red")
+			del_confirm := 0, del_confirm_ts := 0
+			Return
+		}
+		If del_confirm && (A_TickCount - del_confirm_ts > 3000)
+			del_confirm := 0
+		If !del_confirm
+		{
+			del_confirm := 1, del_confirm_ts := A_TickCount
+			LLK_ToolTip("Are you sure you want to delete this session?", 3,,,, "Yellow")
+			Return
+		}
+		del_confirm := 0, del_confirm_ts := 0
+		active := settings.currency_counter.active
+		; Find next session, fall back to previous
+		next_id := "", prev_id := "", found := 0
+		For key in settings.currency_counter.sessions
+		{
+			If found && next_id = ""
+				next_id := key
+			If (key = active)
+				found := 1
+			If !found
+				prev_id := key
+		}
+		fallback := next_id != "" ? next_id : prev_id
+		CurrencyCounter_DeleteSession(active)
+		If !Blank(fallback)
+			CurrencyCounter_SetActive(fallback)
+		CurrencyCounter_Logs()
 		Return
 	}
 
@@ -561,6 +618,15 @@ CurrencyCounter_Logs2(cHWND)
 		currency_name := SubStr(check, 7)
 		If (vars.system.click = 1)
 			CurrencyCounter_PriceEdit(cHWND, currency_name)
+		Return
+	}
+
+	; ── Count cell click – inline edit overlay ────────────────
+	If InStr(check, "count_")
+	{
+		currency_name := SubStr(check, 7)
+		If (vars.system.click = 1)
+			CurrencyCounter_CountEdit(cHWND, currency_name)
 		Return
 	}
 
@@ -768,6 +834,70 @@ CurrencyCounter_PriceEditCommit()
 	}
 
 	vars.hwnd.cc_price_edit := {"main": "", "input": "", "name": ""}
+	CurrencyCounter_DrawBar()
+	CurrencyCounter_Logs()
+}
+
+; ──────────────────────────────────────────────────────────────
+;  CurrencyCounter_CountEdit  –  tiny overlay Edit on count cell
+; ──────────────────────────────────────────────────────────────
+CurrencyCounter_CountEdit(cHWND, currency_name)
+{
+	local
+	global vars, settings
+	static toggle := 0
+
+	KeyWait, LButton
+	entry := vars.currency_counter.currencies[currency_name]
+	If !IsObject(entry)
+		Return
+
+	WinGetPos, xCtrl, yCtrl, wCtrl, hCtrl, % "ahk_id " cHWND
+
+	toggle := !toggle, eName := "cc_count_edit" toggle
+	Gui, %eName%: New, % "-DPIScale +LastFound -Caption +AlwaysOnTop +ToolWindow +E0x02000000 +E0x00080000 HWNDhwnd_edit"
+	Gui, %eName%: Color, 101010
+	Gui, %eName%: Margin, 1, 1
+	Gui, %eName%: Font, % "s" settings.currency_counter.fSize2 " cBlack", % vars.system.font
+
+	Gui, %eName%: Add, Edit, % "w" wCtrl - 2 " h" hCtrl - 2 " Background202020 Number HWNDhwnd_input", % entry.count
+	Gui, %eName%: Add, Button, % "Default Hidden gCurrencyCounter_CountEditSave HWNDhwnd_ok", ok
+	vars.hwnd.cc_count_edit := {"main": hwnd_edit, "input": hwnd_input, "name": currency_name}
+	Gui, %eName%: Show, % "NA x" xCtrl " y" yCtrl
+	ControlFocus,, % "ahk_id " hwnd_input
+	ControlSend,, ^{a}, % "ahk_id " hwnd_input
+
+	While WinActive("ahk_id " hwnd_edit)
+		Sleep, 10
+
+	CurrencyCounter_CountEditCommit()
+	Gui, %eName%: Destroy
+}
+
+CurrencyCounter_CountEditSave:
+	CurrencyCounter_CountEditCommit()
+	Gui, cc_count_edit1: Destroy
+	Gui, cc_count_edit2: Destroy
+Return
+
+CurrencyCounter_CountEditCommit()
+{
+	local
+	global vars, settings
+
+	hwnd  := vars.hwnd.cc_count_edit.input
+	cname := vars.hwnd.cc_count_edit.name
+	If !hwnd || !cname
+		Return
+	raw := Trim(LLK_ControlGet(hwnd))
+	; Strip anything that isn't a digit (Number style already blocks most)
+	raw := RegExReplace(raw, "[^\d]", "")
+	If raw != "" && IsNumber(raw)
+	{
+		vars.currency_counter.currencies[cname].count := raw + 0
+		CurrencyCounter_SaveCurrency(cname)
+	}
+	vars.hwnd.cc_count_edit := {"main": "", "input": "", "name": ""}
 	CurrencyCounter_DrawBar()
 	CurrencyCounter_Logs()
 }

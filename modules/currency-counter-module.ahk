@@ -173,8 +173,7 @@ CurrencyCounter_LoadSession(id)
         {
             entry := Json.Load(raw_val)
             If IsObject(entry)
-                vars.currency_counter.currencies[currency_name] := entry
-
+                vars.currency_counter.currencies[Format("{:U}", currency_name)] := entry
         }
     Return 1
 }
@@ -189,10 +188,6 @@ CurrencyCounter_NewSession()
     settings.currency_counter.sessions[id] := { name : name , img : ""}
     CurrencyCounter_SaveIndex()
     CurrencyCounter_SetActive(id)
-    CurrencyCounter_ShiftCarousel("down")
-
-    If WinExist("ahk_id " vars.hwnd.cc_logs.main)
-        CurrencyCounter_Logs()
 }
 
 CurrencyCounter_SetActive(id)
@@ -227,16 +222,6 @@ CurrencyCounter_DeleteSession(id)
     ; Remove INI sections
     IniDelete, % "ini" vars.poe_version "\currency-counter.ini", % "session_" id
     IniDelete, % "ini" vars.poe_version "\currency-counter.ini", % "session_" id "_currencies"
-
-    ; Switch to another session or create new one
-    If settings.currency_counter.sessions.Count()
-        For next_id in settings.currency_counter.sessions
-        {
-            CurrencyCounter_SetActive(next_id)
-            Break
-        }
-    Else
-        CurrencyCounter_NewSession()
 }
 
 CurrencyCounter_SaveIndex()
@@ -258,8 +243,9 @@ CurrencyCounter_SaveCurrency(currency_name)
     If !IsObject(Json)
         Json := new JSON()
 
+    currency_name := Format("{:U}", currency_name)
     id := settings.currency_counter.active
-    If Blank(id) || Blank(currency_name)
+    If (id == "") || (currency_name == "")
         Return
 
     entry := vars.currency_counter.currencies[currency_name]
@@ -321,7 +307,8 @@ CurrencyCounter_RClick()
     name := CurrencyCounter_ReadItemName()
     If Blank(name)
         Return
-    If InStr(name, "Omen")
+    name := Format("{:U}", name)
+    If InStr(name, "OMEN")
         Return
     vars.currency_counter.picked := 1
     vars.currency_counter.name := name
@@ -421,7 +408,7 @@ CurrencyCounter_ProcessLog(line)
 
     If RegExMatch(line, "i)(.+?) in your inventory has been consumed", m)
     {
-        currency_name := Trim(m1)
+        currency_name := Format("{:U}", Trim(m1))
         If !IsObject(vars.currency_counter.currencies[currency_name])
             vars.currency_counter.currencies[currency_name] := {"count": 0, "price": 0.0, "price_currency": "chaos", "price_updated": 0}
         vars.currency_counter.currencies[currency_name].count += 1
@@ -488,8 +475,6 @@ CurrencyCounter_Click(hotkey)
         }
         Return
     }
-    Else
-        ControlFocus,, % "ahk_id " vars.hwnd.cc_logs.dragbar
 }
 
 ; ──────────────────────────────────────────────────────────────
