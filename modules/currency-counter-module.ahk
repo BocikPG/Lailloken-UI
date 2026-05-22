@@ -119,6 +119,7 @@ Init_currency_counter()
     settings.currency_counter.logs_y := !Blank(check := ini.settings["logs-y"]) ? check : ""
 
     settings.currency_counter.display_cur := !Blank(check := ini.settings["display-currency"]) ? check : "divine"
+    settings.currency_counter.ninja_prices := !Blank(check := ini.settings["ninja-prices"]) ? check : 0
 
     settings.currency_counter.chaos_div := !Blank(check := ini.settings["chaos-div"]) ? check + 0 : 1
     settings.currency_counter.exalt_div := !Blank(check := ini.settings["exalt-div"]) ? check + 0 : 1
@@ -245,7 +246,7 @@ CurrencyCounter_SaveCurrency(currency_name)
 
     currency_name := Format("{:U}", currency_name)
     id := settings.currency_counter.active
-    If (id == "") || (currency_name == "")
+    If Blank(id) || Blank(currency_name)
         Return
 
     entry := vars.currency_counter.currencies[currency_name]

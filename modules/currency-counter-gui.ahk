@@ -16,6 +16,8 @@ CurrencyCounter_Logs(cHWND := "")
 	hFont := fHeight2 * 1.5
 	max_lines := Floor(vars.monitor.h * 0.75 / hFont)
 	ssf := settings.currency_counter.ssf
+	; TODO: move to settings window
+	ninja_price_stale_hours := 3
 
 	; ══════════════════════════════════════════════════════════
 	;  TABLE COLUMNS
@@ -67,9 +69,18 @@ CurrencyCounter_Logs(cHWND := "")
 	entries := []
 	kw := vars.cc_logs.keywords["name"]
 	For name, entry in vars.currency_counter.currencies
-		If IsObject(entry) && entry.count > 0
-			&& (Blank(kw) || InStr(name, kw))
-			entries.Push({"name": name, "entry": entry})
+	{
+		If !IsObject(entry) || entry.count <= 0
+			Continue
+		If !Blank(kw) && !InStr(name, kw)
+			Continue
+		useNinja := (entry.price_updated = 0 || CurrencyCounter_PriceAgeHours(entry.price_updated) >= ninja_price_stale_hours)
+		np := useNinja ? CurrencyCounter_NinjaPrice(name) : ""
+		entries.Push({"name": name, "entry": entry
+			, "eff_price": (np != "") ? np        : entry.price
+			, "eff_cur":   (np != "") ? "chaos"   : entry.price_currency
+			, "is_ninja":  (np != "")})
+	}
 
 	col := vars.cc_logs.sort_col
 	asc := vars.cc_logs.sort_asc
@@ -86,8 +97,8 @@ CurrencyCounter_Logs(cHWND := "")
 					swap := asc ? a.entry.count > b.entry.count : a.entry.count < b.entry.count
 				Else If (col = "price")
 				{
-					chaosA := CurrencyCounter_ToChaos(a.entry.price, a.entry.price_currency)
-					chaosB := CurrencyCounter_ToChaos(b.entry.price, b.entry.price_currency)
+					chaosA := CurrencyCounter_ToChaos(a.eff_price, a.eff_cur)
+					chaosB := CurrencyCounter_ToChaos(b.eff_price, b.eff_cur)
 					swap := asc ? chaosA > chaosB : chaosA < chaosB
 				}
 				Else If (col = "name")
@@ -96,8 +107,8 @@ CurrencyCounter_Logs(cHWND := "")
 					swap := asc ? a.entry.price_updated < b.entry.price_updated : a.entry.price_updated > b.entry.price_updated
 				Else If (col = "total")
 				{
-					chaosA := CurrencyCounter_ToChaos(a.entry.price, a.entry.price_currency) * a.entry.count
-					chaosB := CurrencyCounter_ToChaos(b.entry.price, b.entry.price_currency) * b.entry.count
+					chaosA := CurrencyCounter_ToChaos(a.eff_price, a.eff_cur) * a.entry.count
+					chaosB := CurrencyCounter_ToChaos(b.eff_price, b.eff_cur) * b.entry.count
 					swap := asc ? chaosA > chaosB : chaosA < chaosB
 				}
 				If swap
@@ -250,11 +261,25 @@ CurrencyCounter_Logs(cHWND := "")
 	If !ssf
 	{
 		pickerWidth := totalColWidth
-		pickerX := totalWidth - pickerWidth - table.Count() + 1
+		pickerX := totalWidth - pickerWidth - table.Count() + 3
 		halfH := imgSize
 		colW := halfH
 		midW := pickerWidth - colW * 2
 
+		border := ""
+		txt := ""
+		; ── Ninja fetch button (left of picker, only if ninja prices enabled) ──
+		If (settings.currency_counter.ninja_prices && settings.features.stash)
+		{
+			border := "Border ", g = "gCurrencyCounter_Logs2 " , txt := "N"
+		}
+
+		fetchBtnW := halfH * 2
+		Gui, %GUI_name%: Add, Text, % "x" pickerX - fetchBtnW - 1 " yp-" pickerImgSize - imgSize - 1 " 0x200 " border " Center cFF8800 " g " HWNDhwnd w" fetchBtnW " h" halfH, % txt
+		
+		If (settings.currency_counter.ninja_prices && settings.features.stash)
+			vars.hwnd.cc_logs.ninja_fetch_btn := hwnd
+		
 		; ── Row 1: chaos → divine ─────────────────────────────
 		tsC := settings.currency_counter.chaos_div_updated
 		colorC := " c" (Blank(tsC) ? "808080" : CurrencyCounter_PriceColor(tsC))
@@ -332,7 +357,7 @@ CurrencyCounter_Logs(cHWND := "")
 		Gui, %GUI_name%: Font, % "s" fSize2 + 4
 		If (header = "total")
 		{
-			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Border Center HWNDhwnd cC89B3C w" width, % CurrencyCounter_ComputeTotal()
+			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Border Center HWNDhwnd cC89B3C w" width, % CurrencyCounter_ComputeTotal(entries)
 			vars.hwnd.cc_logs.total_value := hwnd
 			Gui, %GUI_name%: Add, Text, % "xs y+-1 BackgroundTrans Hidden HWNDhwnd w1 h1", % ""
 		}
@@ -357,6 +382,9 @@ CurrencyCounter_Logs(cHWND := "")
 			item := entries[ri]
 			name := item.name
 			entry := item.entry
+			isNinja := item.is_ninja
+			effPrice := item.eff_price
+			effCur := item.eff_cur
 			bg := Mod(ri, 2) ? "131313" : "1A1A1A"
 
 			If (header = "name")
@@ -364,22 +392,27 @@ CurrencyCounter_Logs(cHWND := "")
 			Else If (header = "count")
 				cell_text := entry.count " ", color := "", gLabel := " gCurrencyCounter_Logs2"
 			Else If (header = "price")
-				cell_text := (entry.price != "") ? CurrencyCounter_FormatPrice(entry.price) : "—" . " ", color := " c" CurrencyCounter_PriceColor(entry.price_updated), gLabel := " gCurrencyCounter_Logs2"
+			{
+				If isNinja
+					cell_text := CurrencyCounter_FormatPrice(effPrice) " ", color := " cFF8800", gLabel := " gCurrencyCounter_Logs2"
+				Else
+					cell_text := (entry.price > 0) ? CurrencyCounter_FormatPrice(entry.price) " " : "- ", color := " c" CurrencyCounter_PriceColor(entry.price_updated), gLabel := " gCurrencyCounter_Logs2"
+			}
 			Else If (header = "pc")
-				cell_text := " " CurrencyCounter_CurAbbr(entry.price_currency) " ", color := " c808080", gLabel := " gCurrencyCounter_Logs2"
+				cell_text := " " (isNinja ? "c" : (entry.price > 0 ? CurrencyCounter_CurAbbr(entry.price_currency) : "-")) " ", color := " c808080", gLabel := " gCurrencyCounter_Logs2"
 			Else If (header = "ts")
 				cell_text := CurrencyCounter_FormatAge(entry.price_updated) " ", color := " c" CurrencyCounter_PriceColor(entry.price_updated), gLabel := " gCurrencyCounter_Logs2"
 			Else If (header = "total")
 			{
-				If (entry.price > 0 && entry.count > 0)
+				If (effPrice > 0 && entry.count > 0)
 				{
-					chaos := CurrencyCounter_ToChaos(entry.price, entry.price_currency) * entry.count
+					chaos := CurrencyCounter_ToChaos(effPrice, effCur) * entry.count
 					cell_text := Round(CurrencyCounter_FromChaos(chaos, settings.currency_counter.display_cur), 1) " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur) " "
-					color := " cC89B3C", gLabel := ""
+					color := isNinja ? " cFFAA00" : " cC89B3C", gLabel := ""
 				}
 				Else
 				{
-					cell_text := "— "
+					cell_text := "- "
 					color := " c808080", gLabel := ""
 				}
 			}
@@ -529,6 +562,19 @@ CurrencyCounter_Logs2(cHWND)
 	Case "session_img":
 		KeyWait, LButton
 		; TODO: image picker
+		Return
+
+	Case "ninja_fetch_btn":
+		KeyWait, LButton
+		If !(settings.currency_counter.ninja_prices && settings.features.stash)
+			Return
+		For tab in vars.stash.tabs
+		{
+			LLK_ToolTip(tab,2)
+			Stash_PriceFetch(tab)
+
+		}
+		CurrencyCounter_Logs()
 		Return
 
 	Case "ratio_chaos_btn":
@@ -761,12 +807,16 @@ CurrencyCounter_PriceEdit(cHWND, currency_name)
 	Gui, %eName%: Margin, 1, 1
 	Gui, %eName%: Font, % "s" settings.currency_counter.fSize2 " cBlack", % vars.system.font
 
-	; Determine initial display value: convert decimal to fraction (if price exists)
+	; Determine initial display value
 	initialText := ""
-	if (entry.price != "" && IsNumber(entry.price))
+	If (entry.price > 0 && IsNumber(entry.price))
 		initialText := CurrencyCounter_DecimalToFraction(entry.price + 0)
-	else
-		initialText := ""
+	Else
+	{
+		np := CurrencyCounter_NinjaPrice(currency_name)
+		If (np != "")
+			initialText := CurrencyCounter_DecimalToFraction(np + 0)
+	}
 
 	Gui, %eName%: Add, Edit, % "w" wCtrl - 2 " h" hCtrl - 2 " Background202020 HWNDhwnd_input", % initialText
 	Gui, %eName%: Add, Button, % "Default Hidden gCurrencyCounter_PriceEditSave HWNDhwnd_ok", ok
@@ -947,6 +997,31 @@ CurrencyCounter_PriceAgeHours(ts)
 	Return diff / 60
 }
 
+; ──────────────────────────────────────────────────────────────
+;  CurrencyCounter_NinjaPrice  –  look up chaos price from stash-ninja
+;  Returns "" if not available or feature not enabled.
+; ──────────────────────────────────────────────────────────────
+CurrencyCounter_NinjaPrice(name)
+{
+	local
+	global vars, settings
+
+	If !(settings.currency_counter.ninja_prices && settings.features.stash && IsObject(vars.stash))
+		Return ""
+	StringLower, needle, name ; stash-ninja keys are lowercase
+	For tab in vars.stash.tabs
+	{
+		If !IsObject(vars.stash[tab])
+			Continue
+		If IsObject(vars.stash[tab][needle]) && IsObject(vars.stash[tab][needle].prices)
+		{
+			price := vars.stash[tab][needle].prices.1 ; slot 1 is always chaos
+			Return IsNumber(price) && price > 0 ? price : ""
+		}
+	}
+	Return ""
+}
+
 CurrencyCounter_PriceColor(ts)
 {
 	local
@@ -962,7 +1037,7 @@ CurrencyCounter_FormatAge(ts)
 {
 	local
 	If !ts || !IsNumber(ts)
-		Return "—"
+		Return "-"
 	h := CurrencyCounter_PriceAgeHours(ts)
 	If (h > 24)
 		Return Floor(h / 24) "d"
@@ -1002,15 +1077,15 @@ CurrencyCounter_FromChaos(chaos, target)
 	Return chaos
 }
 
-CurrencyCounter_ComputeTotal()
+CurrencyCounter_ComputeTotal(entries)
 {
-	local
-	global vars, settings
-	chaos := 0
-	For name, entry in vars.currency_counter.currencies
-		If IsObject(entry) && entry.count > 0 && entry.price != ""
-			chaos += CurrencyCounter_ToChaos(entry.price, entry.price_currency) * entry.count
-	Return Round(CurrencyCounter_FromChaos(chaos, settings.currency_counter.display_cur), 1) " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur)
+    local
+    global vars, settings
+    chaos := 0
+    For i, item in entries
+        If item.eff_price > 0
+            chaos += CurrencyCounter_ToChaos(item.eff_price, item.eff_cur) * item.entry.count
+    Return Round(CurrencyCounter_FromChaos(chaos, settings.currency_counter.display_cur), 1) " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur)
 }
 
 CurrencyCounter_ShiftCarousel(direction)
