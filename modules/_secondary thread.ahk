@@ -47,6 +47,8 @@ Return
 #Include modules\cheat sheets.ahk
 #Include modules\client log.ahk
 #Include modules\clone-frames.ahk
+#Include modules\currency-counter-module.ahk
+#Include modules\currency-counter-gui.ahk
 #Include modules\exchange.ahk
 #Include modules\GUI.ahk
 #Include modules\item-checker.ahk

@@ -120,6 +120,9 @@ Init_currency_counter()
 
     settings.currency_counter.display_cur := !Blank(check := ini.settings["display-currency"]) ? check : "divine"
     settings.currency_counter.ninja_prices := !Blank(check := ini.settings["ninja-prices"]) ? check : 0
+    settings.currency_counter.ninja_stale_hours := !Blank(check := ini.settings["ninja-stale-hours"]) ? check + 0 : 3
+    settings.currency_counter.spacing := !Blank(check := ini.settings["spacing"]) ? check + 0 : 10
+    settings.currency_counter.visibleCount := !Blank(check := ini.settings["visible-sessions"]) ? check + 0 : ""
 
     settings.currency_counter.chaos_div := !Blank(check := ini.settings["chaos-div"]) ? check + 0 : 1
     settings.currency_counter.exalt_div := !Blank(check := ini.settings["exalt-div"]) ? check + 0 : 1
@@ -326,10 +329,10 @@ CurrencyCounter_LClick()
     If !vars.currency_counter.picked
         Return
 
-    ; --- NEW: Verify cursor is over a valid item using clipboard ---
+    ; --- Verify cursor is over a valid item using clipboard ---
     Clipboard := ""
-    SendInput, ^c ; copy item under cursor
-    ClipWait, 0.2
+    SendInput, {Blind}^c ; copy item under cursor
+    ClipWait, 0.1
     if ErrorLevel
         return ; clipboard empty – no item, do nothing
 
@@ -337,8 +340,18 @@ CurrencyCounter_LClick()
     if !RegExMatch(Clipboard, "i)Rarity:")
         return ; not an item – do not increment
 
-    ; --- End of verification ---
+    ; --- NEW: Temporary currency substitution for PoE1 with Alt held ---
+    originalName := vars.currency_counter.name
+    if (vars.poe_version = "" && GetKeyState("Alt", "P"))
+    {
+        if (originalName = "ORB OF ALTERATION")
+            vars.currency_counter.name := "ORB OF AUGMENTATION"
+        else if (originalName = "ALCHEMY ORB")
+            vars.currency_counter.name := "ORB OF SCOURING"
+        ; else keep unchanged
+    }
 
+    ; --- Use the (possibly substituted) currency name for counting ---
     if(Blank(vars.currency_counter.currencies[vars.currency_counter.name]))
     {
         vars.currency_counter.currencies[vars.currency_counter.name] := {"count": 0, "price": 0.0, "price_currency": "chaos", "price_updated": 0}
@@ -348,7 +361,10 @@ CurrencyCounter_LClick()
 
     CurrencyCounter_SaveCurrency(vars.currency_counter.name)
 
-    ; Watch for shift-drop
+    ; --- Restore original picked currency name before any state changes ---
+    vars.currency_counter.name := originalName
+
+    ; Watch for shift-drop (original logic, now using restored name)
     If GetKeyState("Shift", "P")
     {
         vars.currency_counter.drop_on_shift_release := 1
@@ -361,7 +377,7 @@ CurrencyCounter_LClick()
     Else
     {
         vars.currency_counter.picked := 0
-        vars.currency_counter.name := ""
+        vars.currency_counter.name := ""   ; cleared because no shift held
     }
 
     CurrencyCounter_DrawBar()

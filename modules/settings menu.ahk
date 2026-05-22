@@ -5700,13 +5700,12 @@ Settings_currency_counter()
     GUI      := "settings_menu" vars.settings.GUI_toggle
     x_anchor := vars.settings.x_anchor
 
-    ; Anchor – positions content column correctly
     Gui, %GUI%: Add, Text, % "Section x" x_anchor " y" vars.settings.ySelection, % ""
 
-    ; Enable checkbox
+    ; ── Enable ────────────────────────────────────────────────
     Gui, %GUI%: Add, Checkbox, % "xs y+" vars.settings.spacing " Section gSettings_currency_counter2 HWNDhwnd Checked" settings.features.currency_counter
         , % "Enable Currency Counter"
-    vars.hwnd.settings.currency_counter_enable := hwnd
+    vars.hwnd.settings.currency_counter_enable := vars.hwnd.help_tooltips["settings_currency_counter enable"] := hwnd
 
     If !settings.features.currency_counter
     {
@@ -5714,20 +5713,88 @@ Settings_currency_counter()
         Return
     }
 
-    ; SSF checkbox
-    Gui, %GUI%: Add, Checkbox, % "xs Section gSettings_currency_counter2 HWNDhwnd y+" vars.settings.spacing " Checked" settings.currency_counter.ssf
+    ; ── General ───────────────────────────────────────────────
+    Gui, %GUI%: Font, bold underline
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing, % Lang_Trans("global_general")
+    Gui, %GUI%: Add, Button, % "xp yp wp hp Hidden Default HWNDhwnd gSettings_currency_counter2", OK
+    Gui, %GUI%: Font, norm
+    vars.hwnd.settings.currency_counter_apply := hwnd
+
+    Gui, %GUI%: Add, Checkbox, % "xs Section gSettings_currency_counter2 HWNDhwnd Checked" settings.currency_counter.ssf
         , % "SSF (Solo Self-Found) mode"
-    vars.hwnd.settings.currency_counter_ssf := hwnd
+    vars.hwnd.settings.currency_counter_ssf := vars.hwnd.help_tooltips["settings_currency_counter ssf"] := hwnd
+
+    ; ── UI ────────────────────────────────────────────────────
+    Gui, %GUI%: Font, bold underline
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing, % Lang_Trans("global_ui")
+    Gui, %GUI%: Font, norm
 
     ; Font size  –/N/+
-    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing, % "Font size:"
+    Gui, %GUI%: Add, Text, % "xs Section", % Lang_Trans("global_font")
+    vars.hwnd.help_tooltips["settings_currency_counter font-size"] := hwnd
     Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/2 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "–"
     vars.hwnd.settings.currency_counter_fminus := hwnd
-    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*3, % settings.currency_counter.fSize
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border HWNDhwnd w" settings.general.fWidth*3, % settings.currency_counter.fSize
     vars.hwnd.settings.currency_counter_fsize := hwnd
     Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "+"
     vars.hwnd.settings.currency_counter_fplus := hwnd
 
+    ; Tab spacing  –/N/+
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing/2, % "Tab spacing:"
+    vars.hwnd.help_tooltips["settings_currency_counter spacing"] := hwnd
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/2 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "–"
+    vars.hwnd.settings.currency_counter_sminus := hwnd
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border HWNDhwnd w" settings.general.fWidth*3, % settings.currency_counter.spacing
+    vars.hwnd.settings.currency_counter_spacing := hwnd
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "+"
+    vars.hwnd.settings.currency_counter_splus := hwnd
+
+    ; Visible sessions  –/N/+
+    visDefault := settings.currency_counter.ssf ? 2 : 4
+    visCur := settings.currency_counter.visibleCount > 0 ? settings.currency_counter.visibleCount : visDefault
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing/2, % "Visible sessions:"
+    vars.hwnd.help_tooltips["settings_currency_counter visible sessions"] := hwnd
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/2 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "–"
+    vars.hwnd.settings.currency_counter_vminus := hwnd
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border HWNDhwnd w" settings.general.fWidth*3, % visCur
+    vars.hwnd.settings.currency_counter_vcount := hwnd
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "+"
+    vars.hwnd.settings.currency_counter_vplus := hwnd
+
+    ; ── poe.ninja ─────────────────────────────────────────────
+    Gui, %GUI%: Font, bold underline
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing, % "poe.ninja:"
+    Gui, %GUI%: Font, norm
+
+    ; Ninja prices — single checkbox when enabled (click + tooltip work normally)
+    ; Split into bare checkbox + Text label when disabled (avoids Windows double-render)
+    ninjaEnabled := settings.features.stash
+    If ninjaEnabled
+    {
+        Gui, %GUI%: Add, Checkbox, % "xs Section gSettings_currency_counter2 HWNDhwnd Checked" settings.currency_counter.ninja_prices
+            , % "Use poe.ninja prices as fallback"
+        vars.hwnd.settings.currency_counter_ninja := vars.hwnd.help_tooltips["settings_currency_counter ninja"] := hwnd
+    }
+    Else
+    {
+        Gui, %GUI%: Add, Checkbox, % "xs Section Disabled HWNDhwnd Checked" settings.currency_counter.ninja_prices, % ""
+        vars.hwnd.settings.currency_counter_ninja := hwnd
+        Gui, %GUI%: Add, Text, % "ys x+0 c808080 HWNDhwnd", % "Use poe.ninja prices as fallback"
+        vars.hwnd.help_tooltips["settings_currency_counter ninja"] := hwnd
+    }
+
+    ; Ninja stale threshold — only shown when ninja prices are enabled
+    If (settings.currency_counter.ninja_prices && ninjaEnabled)
+    {
+        Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing/2, % "Price stale after (h):"
+        vars.hwnd.help_tooltips["settings_currency_counter ninja stale"] := hwnd
+        Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/2 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "–"
+        vars.hwnd.settings.currency_counter_nminus := hwnd
+        Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border HWNDhwnd w" settings.general.fWidth*3, % settings.currency_counter.ninja_stale_hours
+        vars.hwnd.settings.currency_counter_nstale := hwnd
+        Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "+"
+        vars.hwnd.settings.currency_counter_nplus := hwnd
+    }
 }
 
 Settings_currency_counter2(cHWND)
@@ -5741,8 +5808,7 @@ Settings_currency_counter2(cHWND)
 	        , % "ini" vars.poe_version "\config.ini", features, enable currency-counter
 	    If settings.features.currency_counter
 		{
-	        func := "CurrencyCounter_DrawBar"
-			%func%()
+	        CurrencyCounter_DrawBar()
 		}
 	    Else
 	        LLK_Overlay(vars.hwnd.currency_counter.main, "destroy")
@@ -5754,8 +5820,8 @@ Settings_currency_counter2(cHWND)
         IniWrite, % (settings.currency_counter.ssf := LLK_ControlGet(cHWND))
             , % "ini" vars.poe_version "\currency-counter.ini", settings, ssf mode
         Settings_menu("currency-counter")
-		If WinExist("ahk_id " vars.hwnd.cc_logs.main)
-        	CurrencyCounter_Logs()
+        If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+            CurrencyCounter_Logs()
         Return
     }
     If (cHWND = vars.hwnd.settings.currency_counter_fminus) || (cHWND = vars.hwnd.settings.currency_counter_fplus)
@@ -5767,8 +5833,49 @@ Settings_currency_counter2(cHWND)
         settings.currency_counter.fWidth  := w
         IniWrite, % settings.currency_counter.fSize, % "ini" vars.poe_version "\currency-counter.ini", settings, font-size
         Settings_menu("currency-counter")
-		If WinExist("ahk_id " vars.hwnd.cc_logs.main)
-        	CurrencyCounter_Logs()
+        If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+            CurrencyCounter_Logs()
+        Return
+    }
+    If (cHWND = vars.hwnd.settings.currency_counter_sminus) || (cHWND = vars.hwnd.settings.currency_counter_splus)
+    {
+        delta := (cHWND = vars.hwnd.settings.currency_counter_splus) ? 1 : -1
+        settings.currency_counter.spacing := Max(2, Min(20, settings.currency_counter.spacing + delta))
+        IniWrite, % settings.currency_counter.spacing, % "ini" vars.poe_version "\currency-counter.ini", settings, spacing
+        Settings_menu("currency-counter")
+        If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+            CurrencyCounter_Logs()
+        Return
+    }
+    If (cHWND = vars.hwnd.settings.currency_counter_vminus) || (cHWND = vars.hwnd.settings.currency_counter_vplus)
+    {
+        visDefault := settings.currency_counter.ssf ? 2 : 4
+        cur := settings.currency_counter.visibleCount > 0 ? settings.currency_counter.visibleCount : visDefault
+        delta := (cHWND = vars.hwnd.settings.currency_counter_vplus) ? 1 : -1
+        settings.currency_counter.visibleCount := Max(1, Min(8, cur + delta))
+        IniWrite, % settings.currency_counter.visibleCount, % "ini" vars.poe_version "\currency-counter.ini", settings, visible-sessions
+        Settings_menu("currency-counter")
+        If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+            CurrencyCounter_Logs()
+        Return
+    }
+    If (cHWND = vars.hwnd.settings.currency_counter_nminus) || (cHWND = vars.hwnd.settings.currency_counter_nplus)
+    {
+        delta := (cHWND = vars.hwnd.settings.currency_counter_nplus) ? 1 : -1
+        settings.currency_counter.ninja_stale_hours := Max(1, Min(24, settings.currency_counter.ninja_stale_hours + delta))
+        IniWrite, % settings.currency_counter.ninja_stale_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, ninja-stale-hours
+        Settings_menu("currency-counter")
+        If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+            CurrencyCounter_Logs()
+        Return
+    }
+    If (cHWND = vars.hwnd.settings.currency_counter_ninja)
+    {
+        IniWrite, % (settings.currency_counter.ninja_prices := LLK_ControlGet(cHWND))
+            , % "ini" vars.poe_version "\currency-counter.ini", settings, ninja-prices
+        Settings_menu("currency-counter")
+        If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+            CurrencyCounter_Logs()
         Return
     }
 }

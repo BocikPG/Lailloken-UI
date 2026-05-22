@@ -1116,6 +1116,37 @@
     "updater skip": [
       "long-click to skip this version and no longer receive notifications",
       "notifications will start showing again with the next version"
+    ],
+    "currency_counter enable": [
+      "tracks how many of each currency you use during a session",
+      "left-click a currency in the bar to count it, right-click to pick it up"
+    ],
+    "currency_counter ssf": [
+      "solo self-found mode: hides the price and total columns",
+      "also changes the default number of visible session tabs to 2"
+    ],
+    "currency_counter font-size": [
+      "– and + can be held down, the middle button resets the size"
+    ],
+    "currency_counter spacing": [
+      "pixel gap between session tabs in the bar",
+      "clamped between 2 and 20"
+    ],
+    "currency_counter visible sessions": [
+      "how many session tabs are shown at once in the bar",
+      "scroll the mouse wheel over the tabs to cycle through the rest",
+      "clamped between 1 and 8",
+      "default is 2 in ssf mode, 4 otherwise"
+    ],
+    "currency_counter ninja stale": [
+      "how many hours must pass without a manual price update before poe.ninja prices are used as a fallback",
+      "orange price = sourced from poe.ninja; yellow total = at least one item uses a ninja price",
+      "clamped between 1 and 24 hours"
+    ],
+    "currency_counter ninja": [
+      "uses poe.ninja prices as a fallback when a currency has no manual price, or its price is older than the staleness threshold",
+      "orange price text = poe.ninja source; yellow total = at least one ninja-sourced item included",
+      "requires the stash-ninja feature to be enabled(/highlight)"
     ]
   },
   "alarm": {

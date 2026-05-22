@@ -16,8 +16,7 @@ CurrencyCounter_Logs(cHWND := "")
 	hFont := fHeight2 * 1.5
 	max_lines := Floor(vars.monitor.h * 0.75 / hFont)
 	ssf := settings.currency_counter.ssf
-	; TODO: move to settings window
-	ninja_price_stale_hours := 3
+	ninja_price_stale_hours := settings.currency_counter.ninja_stale_hours
 
 	; ══════════════════════════════════════════════════════════
 	;  TABLE COLUMNS
@@ -62,7 +61,7 @@ CurrencyCounter_Logs(cHWND := "")
 		}
 	}
 	hEdit := hFont ; approximation, or compute exactly using LLK_PanelDimensions on a sample string
-	totalWidth := totalColumnsWidth
+	totalWidth := totalColumnsWidth - 1
 
 	; ── Gather entries (currencies with count > 0) ──────────
 
@@ -150,8 +149,8 @@ CurrencyCounter_Logs(cHWND := "")
 	Gui, %GUI_name%: Add, Text, x0 y+10 Section Hidden ; invisible anchor
 	active_id := settings.currency_counter.active
 
-	settings.currency_counter.spacing := 10 ;TODO: actually make it in setting with clamp
-	settings.currency_counter.visibleCount := ssf ? 2 : 4 ;TODO: actually make it in setting with clamp
+	settings.currency_counter.spacing := settings.currency_counter.spacing > 0 ? settings.currency_counter.spacing : 10
+	settings.currency_counter.visibleCount := settings.currency_counter.visibleCount > 0 ? settings.currency_counter.visibleCount : (ssf ? 2 : 4)
 
 	visibleCount := settings.currency_counter.visibleCount
 	spacing := settings.currency_counter.spacing
@@ -333,7 +332,7 @@ CurrencyCounter_Logs(cHWND := "")
 
 			; Search Edit (Section anchor for col 1) + add-currency + X reset flush right
 			; Search Edit (Section anchor for col 1) + add-currency + X reset flush right
-			Gui, %GUI_name%: Add, Edit, % "xs+1 Section cBlack gCurrencyCounter_Logs2 HWNDhwnd_search w" width - hEdit * 2 " h" hEdit (!Blank(pCheck := vars.cc_logs.keywords["name"]) ? " cGreen" : ""), % pCheck
+			Gui, %GUI_name%: Add, Edit, % "xs Section cBlack gCurrencyCounter_Logs2 HWNDhwnd_search w" width - hEdit * 2 " h" hEdit (!Blank(pCheck := vars.cc_logs.keywords["name"]) ? " cGreen" : ""), % pCheck
 			vars.hwnd.cc_logs.search_name := hwnd_search
 			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center gCurrencyCounter_Logs2 HWNDhwnd c41BB1C 0x200 x+0 w" hEdit " h" hEdit, % "+"
 			vars.hwnd.cc_logs.add_currency_btn := hwnd
@@ -344,7 +343,8 @@ CurrencyCounter_Logs(cHWND := "")
 		{
 			; "Total" label in the spacer row – IS the Section anchor (ys Section).
 			; Width covers just the value column; icon is placed separately after.
-			Gui, %GUI_name%: Add, Text, % "ys Section BackgroundTrans Border w" width " h" hEdit " Center cWhite", % "Total "
+			Gui, %GUI_name%: Add, Text, % "ys Section BackgroundTrans Border w" width " h" hEdit " Center cWhite HWNDhwnd gCurrencyCounter_Logs2", % "Total "
+			vars.hwnd.cc_logs.total_label := hwnd
 		}
 		Else
 		{
@@ -702,11 +702,27 @@ CurrencyCounter_Logs2(cHWND)
 		Else
 		{
 			vars.cc_logs.sort_col := col
-			vars.cc_logs.sort_asc := 1
+			vars.cc_logs.sort_asc := 0
 		}
 		CurrencyCounter_Logs()
 		Return
 	}
+
+	if(vars.hwnd.cc_logs.total_label = cHWND)
+	{
+		col := "total"
+		If (vars.cc_logs.sort_col = col)
+			vars.cc_logs.sort_asc := !vars.cc_logs.sort_asc
+		Else
+		{
+			vars.cc_logs.sort_col := col
+			vars.cc_logs.sort_asc := 0
+		}
+		CurrencyCounter_Logs()
+		Return
+	}
+
+
 }
 
 ; ──────────────────────────────────────────────────────────────
