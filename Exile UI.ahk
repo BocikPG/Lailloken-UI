@@ -60,6 +60,7 @@ Init_anoints(), LLK_Log("initialized anoints settings")
 Init_betrayal(), LLK_Log("initialized betrayal settings")
 Init_cheatsheets(), LLK_Log("initialized cheat-sheet settings")
 Init_cloneframes(), LLK_Log("initialized clone-frames settings")
+Init_currency_counter(), LLK_Log("initialized currency-counter settings")
 Init_exchange(), LLK_Log("initialized vaal street settings")
 If WinExist("ahk_exe GeForceNOW.exe")
 	Init_geforce(), LLK_Log("initialized geforce now settings")
@@ -121,6 +122,7 @@ Return
 #Include modules\cheat sheets.ahk
 #Include modules\client log.ahk
 #Include modules\clone-frames.ahk
+#Include modules\currency-counter-module.ahk
 #Include modules\exchange.ahk
 #Include modules\GUI.ahk
 #Include modules\hotkeys.ahk
@@ -510,6 +512,7 @@ Init_general()
 	settings.features.lootfilter := !Blank(check := ini.features["enable filterspoon"]) ? check : 0
 	settings.features.betrayal := !vars.poe_version && !Blank(check := ini.features["enable betrayal-info"]) ? check : 0
 	settings.features.cheatsheets := !Blank(check := ini.features["enable cheat-sheets"]) ? check : 0
+	settings.features.currency_counter := !Blank(check := ini.features["enable currency-counter"]) ? check : 0
 	settings.features.iteminfo := !Blank(check := ini.features["enable item-info"]) ? check : 0
 	settings.features.leveltracker := !Blank(check := ini.features["enable leveling guide"]) ? check : 0
 	settings.features.actdecoder := !Blank(check := ini.features["enable act-decoder"]) ? check : 0

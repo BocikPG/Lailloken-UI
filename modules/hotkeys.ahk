@@ -157,6 +157,8 @@ Hotkeys_ESC()
 	}
 	Else If WinExist("ahk_id " vars.hwnd.stash.main)
 		Stash_Close()
+	Else If vars.currency_counter.picked
+    	CurrencyCounter_Esc()
 	Else If WinExist("ahk_id " vars.hwnd.compat_test)
 	{
 		Gui, compat_test: Destroy
@@ -499,6 +501,29 @@ RButton::Sanctum_Relics("click")
 
 #If vars.hwnd.sanctum_relics.main
 *~SC038::Sanctum_Relics("trans")
+
+;── Currency Counter ──────────────────────────────────────────
+#If vars.hwnd.cc_logs.main && (vars.general.wMouse = vars.hwnd.cc_logs.main) && (vars.general.cMouse != vars.hwnd.cc_logs.name_edit) && (vars.general.cMouse != vars.hwnd.cc_logs.search_name)
+WheelUp::CurrencyCounter_ShiftCarousel("up")
+WheelDown::CurrencyCounter_ShiftCarousel("down")
+
+#If settings.features.currency_counter && vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main) && (vars.general.cMouse = vars.hwnd.currency_counter.drag)
+LButton::CurrencyCounter_Click(1)
+RButton::CurrencyCounter_Click(2)
+
+#If settings.features.currency_counter && vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main) && (vars.general.cMouse != vars.hwnd.currency_counter.drag)
+LButton::CurrencyCounter_BarClick()
+
+#If vars.hwnd.cc_logs.main && (vars.general.wMouse = vars.hwnd.cc_logs.main) && (vars.general.cMouse != vars.hwnd.cc_logs.name_edit) && (vars.general.cMouse != vars.hwnd.cc_logs.search_name)
+LButton::CurrencyCounter_Logs2(vars.general.cMouse)
+
+#If settings.features.currency_counter && (vars.general.wMouse = vars.hwnd.poe_client)
+~*RButton::CurrencyCounter_RClick()
+
+#If settings.features.currency_counter && (vars.general.wMouse = vars.hwnd.poe_client) && vars.currency_counter.picked
+~*LButton::CurrencyCounter_LClick()
+
+; ── End Currency Counter ──────────────────────────────────────
 
 #If vars.hwnd.stash_picker.main && vars.general.cMouse && WinExist("ahk_id " vars.hwnd.stash_picker.main) && LLK_PatternMatch(LLK_HasVal(vars.hwnd.stash_picker, vars.general.cMouse), "", ["confirm_", "bulk"])
 WheelUp::Stash_PricePicker("+")
