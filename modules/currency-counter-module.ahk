@@ -121,6 +121,7 @@ Init_currency_counter()
     settings.currency_counter.display_cur := !Blank(check := ini.settings["display-currency"]) ? check : "divine"
     settings.currency_counter.ninja_prices := !Blank(check := ini.settings["ninja-prices"]) ? check : 0
     settings.currency_counter.ninja_stale_hours := !Blank(check := ini.settings["ninja-stale-hours"]) ? check + 0 : 3
+    settings.currency_counter.max_rows := !Blank(check := ini.settings["max-rows"]) ? check + 0 : 0 ; 0 = no user limit
     settings.currency_counter.spacing := !Blank(check := ini.settings["spacing"]) ? check + 0 : 10
     settings.currency_counter.visibleCount := !Blank(check := ini.settings["visible-sessions"]) ? check + 0 : ""
 

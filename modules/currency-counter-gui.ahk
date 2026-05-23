@@ -15,6 +15,8 @@ CurrencyCounter_Logs(cHWND := "")
 	LLK_FontDimensions(fSize2 + 4, fHeight3, fWidth3)
 	hFont := fHeight2 * 1.5
 	max_lines := Floor(vars.monitor.h * 0.75 / hFont)
+	If (settings.currency_counter.max_rows > 0)
+		max_lines := Min(max_lines, settings.currency_counter.max_rows)
 	ssf := settings.currency_counter.ssf
 	ninja_price_stale_hours := settings.currency_counter.ninja_stale_hours
 
@@ -210,7 +212,7 @@ CurrencyCounter_Logs(cHWND := "")
 	}
 
 	Gui, %GUI_name%: Font, % "s" fSize2 * 3 " c41BB1C", % vars.system.font
-	Gui, %GUI_name%: Add, Text, % "yp x" totalWidth - newSessionButtonWidth - spacing " w" newSessionButtonWidth " h" itemHeight " Border Center 0x200 gCurrencyCounter_Logs2 HWNDhwnd", % " + "
+	Gui, %GUI_name%: Add, Text, % "yp x" totalWidth - newSessionButtonWidth - spacing " w" newSessionButtonWidth - spacing " h" itemHeight " Border Center 0x200 gCurrencyCounter_Logs2 HWNDhwnd", % " + "
 	Gui, %GUI_name%: Font, % "s" fSize2 " cWhite", % vars.system.font
 	vars.hwnd.cc_logs.add_session := vars.hwnd.help_tooltips["cclogs_add session"] := hwnd
 
@@ -233,9 +235,9 @@ CurrencyCounter_Logs(cHWND := "")
 	Gui, %GUI_name%: Add, Text, % "xs Section y+0 Border 0x200 Center BackgroundTrans cWhite w" labelWidth " h" imgSize, % Lang_Trans("m_cc_session_label")
 
 	; ── Session image (larger) ─────────────────────────────────
-	Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center c404040 w" imgSize " h" imgSize, % "IMG"
-	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
-	vars.hwnd.cc_logs.session_img := hwnd
+	; Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center c404040 w" imgSize " h" imgSize, % "IMG"
+	; Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
+	; vars.hwnd.cc_logs.session_img := hwnd
 
 	; ── Name edit field ───────────────────────────────────────
 	editWidth := fWidth2 * 16
@@ -269,17 +271,67 @@ CurrencyCounter_Logs(cHWND := "")
 
 		border := ""
 		txt := ""
-		; ── Ninja fetch button (left of picker, only if ninja prices enabled) ──
+		; ── Ninja fetch button + age label (only if ninja prices enabled) ──
 		If (settings.currency_counter.ninja_prices && settings.features.stash)
 		{
-			border := "Border ", g = "gCurrencyCounter_Logs2 " , txt := "N"
-		}
+			; Calculate oldest timestamp among all stash tabs
+			oldest_ts := 0
+			if IsObject(vars.stash) && IsObject(vars.stash.tabs)
+			{
+				For tab in vars.stash.tabs
+					if IsObject(vars.stash[tab]) && vars.stash[tab].timestamp
+					{
+						ts := vars.stash[tab].timestamp
+						if (oldest_ts = 0 || ts < oldest_ts)
+							oldest_ts := ts
+					}
+			}
 
-		fetchBtnW := halfH * 2
-		Gui, %GUI_name%: Add, Text, % "x" pickerX - fetchBtnW - 1 " yp-" pickerImgSize - imgSize - 1 " 0x200 " border " Center cFF8800 " g " HWNDhwnd w" fetchBtnW " h" halfH, % txt
-		
-		If (settings.currency_counter.ninja_prices && settings.features.stash)
+			; Format age string and determine colour
+			if (oldest_ts = 0)
+			{
+				age_string := "--"
+				age_color := "White"
+			}
+			else
+			{
+				hours := CurrencyCounter_PriceAgeHours(oldest_ts)
+				if (hours >= 24)
+					age_string := Floor(hours / 24) "d"
+				else if (hours >= 1)
+					age_string := Floor(hours) "h"
+				else
+				{
+					minutes := Floor(hours * 60)
+					age_string := (minutes >= 1) ? minutes "m" : "now"
+				}
+				; Colour: red if 1 hour or older, otherwise lime
+				age_color := (hours >= 1) ? "Red" : "Lime"
+			}
+
+			; Dimensions
+			fetchBtnW := halfH * 2
+
+			; Original position of the button (now used for the age label)
+			labelX := pickerX - fetchBtnW - 1
+			; New button position: one width to the left
+			fetchX := labelX - fetchBtnW - 1
+
+			; 1) Fetch button (moved left)
+			Gui, %GUI_name%: Add, Text
+				, % "x" fetchX " yp-" pickerImgSize - imgSize - 1
+				. " 0x200 Border Center cFF8800 gCurrencyCounter_Logs2 HWNDhwnd"
+				. " w" fetchBtnW " h" halfH
+				, % "N"
 			vars.hwnd.cc_logs.ninja_fetch_btn := vars.hwnd.help_tooltips["cclogs_ninja fetch"] := hwnd
+
+			; 2) Age label (at original button position, with dynamic colour)
+			Gui, %GUI_name%: Add, Text
+				, % "x" labelX " yp 0x200 Border Center c" age_color " HWNDhwnd"
+				. " w" fetchBtnW " h" halfH
+				, % age_string
+			vars.hwnd.help_tooltips["cclogs_ninja age"] := hwnd
+		}
 
 		; ── Row 1: chaos → divine ─────────────────────────────
 		tsC := settings.currency_counter.chaos_div_updated
@@ -410,7 +462,7 @@ CurrencyCounter_Logs(cHWND := "")
 				{
 					chaos := CurrencyCounter_ToChaos(effPrice, effCur) * entry.count
 					cell_text := Round(CurrencyCounter_FromChaos(chaos, settings.currency_counter.display_cur), 1) " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur) " "
-					color := isNinja ? " cFFAA00" : " cC89B3C", gLabel := ""
+					color := isNinja ? " cA35200" : (CurrencyCounter_PriceAgeHours(entry.price_updated) >= 6 ? " cFF3333" : " cFFA500"), gLabel := ""
 				}
 				Else
 				{
@@ -724,7 +776,6 @@ CurrencyCounter_Logs2(cHWND)
 		Return
 	}
 
-
 }
 
 ; ──────────────────────────────────────────────────────────────
@@ -885,7 +936,7 @@ CurrencyCounter_PriceEditCommit()
 				If (price >= 0)
 				{
 					vars.currency_counter.currencies[cname].price := price
-					vars.currency_counter.currencies[cname].price_updated := A_Now
+					vars.currency_counter.currencies[cname].price_updated := A_NowUTC
 					CurrencyCounter_SaveCurrency(cname)
 				}
 			}
@@ -896,7 +947,7 @@ CurrencyCounter_PriceEditCommit()
 		If IsNumber(raw) && (raw + 0 >= 0)
 		{
 			vars.currency_counter.currencies[cname].price := raw + 0
-			vars.currency_counter.currencies[cname].price_updated := A_Now
+			vars.currency_counter.currencies[cname].price_updated := A_NowUTC
 			CurrencyCounter_SaveCurrency(cname)
 		}
 	}
@@ -1010,7 +1061,7 @@ CurrencyCounter_PriceAgeHours(ts)
 	local
 	If !ts || !IsNumber(ts)
 		Return 0
-	diff := A_Now
+	diff := A_NowUTC
 	EnvSub, diff, % ts, minutes
 	Return diff / 60
 }
@@ -1097,13 +1148,13 @@ CurrencyCounter_FromChaos(chaos, target)
 
 CurrencyCounter_ComputeTotal(entries)
 {
-    local
-    global vars, settings
-    chaos := 0
-    For i, item in entries
-        If item.eff_price > 0
-            chaos += CurrencyCounter_ToChaos(item.eff_price, item.eff_cur) * item.entry.count
-    Return Round(CurrencyCounter_FromChaos(chaos, settings.currency_counter.display_cur), 1) " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur)
+	local
+	global vars, settings
+	chaos := 0
+	For i, item in entries
+		If item.eff_price > 0
+			chaos += CurrencyCounter_ToChaos(item.eff_price, item.eff_cur) * item.entry.count
+	Return Round(CurrencyCounter_FromChaos(chaos, settings.currency_counter.display_cur), 1) " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur)
 }
 
 CurrencyCounter_ShiftCarousel(direction)
@@ -1227,16 +1278,16 @@ CurrencyCounter_RatioEditCommit(raw)
 	If (which = "chaos")
 	{
 		settings.currency_counter.chaos_div := val
-		settings.currency_counter.chaos_div_updated := A_Now
+		settings.currency_counter.chaos_div_updated := A_NowUTC
 		IniWrite, % val, % "ini" vars.poe_version "\currency-counter.ini", settings, chaos-div
-		IniWrite, % A_Now, % "ini" vars.poe_version "\currency-counter.ini", settings, chaos-div-updated
+		IniWrite, % A_NowUTC, % "ini" vars.poe_version "\currency-counter.ini", settings, chaos-div-updated
 	}
 	Else
 	{
 		settings.currency_counter.exalt_div := val
-		settings.currency_counter.exalt_div_updated := A_Now
+		settings.currency_counter.exalt_div_updated := A_NowUTC
 		IniWrite, % val, % "ini" vars.poe_version "\currency-counter.ini", settings, exalt-div
-		IniWrite, % A_Now, % "ini" vars.poe_version "\currency-counter.ini", settings, exalt-div-updated
+		IniWrite, % A_NowUTC, % "ini" vars.poe_version "\currency-counter.ini", settings, exalt-div-updated
 	}
 	vars.hwnd.cc_ratio_edit := {"main": "", "input": "", "which": ""}
 	CurrencyCounter_UpdateExaltRate()
