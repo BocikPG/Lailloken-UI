@@ -1261,7 +1261,7 @@
 		m_cc_visible_sessions	=	"visible sessions:"
 		m_cc_ninja_section		=	"poe.ninja:"
 		m_cc_ninja_prices		=	"use poe.ninja prices as fallback"
-		m_cc_ninja_stale		=	"price stale after (h):"
+		m_cc_ninja_stale		=	"use ninja price after (h):"
 
 ;## currency counter viewer window strings
 		m_cc_window_title		=	"Currency Counter Viewer"
