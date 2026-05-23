@@ -1,3 +1,10 @@
+## Changes to orginal:
+Added a currency counter module, that tracks how much currency you spend during crafting session.
+If anyone want to use it, there are tooltip on hover in most important places. GL with rest :D (althrough I tried to make it as easy to use as possible. 
+
+If you want to contact me, try by Discord - it should be easy ;)
+
+
 ## About:
 A light-weight AHK overlay with UI and QoL features for Path of Exile 1 and 2, emphasizing ease-of-use, minimalist design, low hotkey requirements, and seamless integration into the game-client. Formerly Lailloken UI.  
 **`This project is not affiliated with or endorsed by Grinding Gear Games (GGG) in any way`**.
