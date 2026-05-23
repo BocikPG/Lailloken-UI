@@ -121,7 +121,11 @@ Init_currency_counter()
     settings.currency_counter.display_cur := !Blank(check := ini.settings["display-currency"]) ? check : "divine"
     settings.currency_counter.ninja_prices := !Blank(check := ini.settings["ninja-prices"]) ? check : 0
     settings.currency_counter.ninja_stale_hours := !Blank(check := ini.settings["ninja-stale-hours"]) ? check + 0 : 3
-    settings.currency_counter.max_rows := !Blank(check := ini.settings["max-rows"]) ? check + 0 : 0 ; 0 = no user limit
+    settings.currency_counter.max_rows := !Blank(check := ini.settings["max-rows"]) ? check + 0 : 0
+    settings.currency_counter.price_warn_hours  := !Blank(check := ini.settings["price-warn-hours"])  ? check + 0 : 3
+    settings.currency_counter.price_stale_hours := !Blank(check := ini.settings["price-stale-hours"]) ? check + 0 : 6
+    settings.currency_counter.rate_warn_hours   := !Blank(check := ini.settings["rate-warn-hours"])   ? check + 0 : 3
+    settings.currency_counter.rate_stale_hours  := !Blank(check := ini.settings["rate-stale-hours"])  ? check + 0 : 6 
     settings.currency_counter.spacing := !Blank(check := ini.settings["spacing"]) ? check + 0 : 10
     settings.currency_counter.visibleCount := !Blank(check := ini.settings["visible-sessions"]) ? check + 0 : ""
 
@@ -260,20 +264,6 @@ CurrencyCounter_SaveCurrency(currency_name)
     IniWrite, % Json.Dump(entry), % "ini" vars.poe_version "\currency-counter.ini", % "session_" id "_currencies", % currency_name
 }
 
-; ──────────────────────────────────────────────────────────────
-;  Table GUI  –  main popup panel
-; ──────────────────────────────────────────────────────────────
-CurrencyCounter_TableToggle()
-{
-    local
-    global vars, settings
-
-    If vars.hwnd.cc_logs.main && WinExist("ahk_id " vars.hwnd.cc_logs.main)
-        if(!Blank(hwnd_old := vars.hwnd.cc_logs.main))
-            LLK_Overlay(hwnd_old, "destroy")
-        Else
-            CurrencyCounter_Logs()
-}
 
 ; ──────────────────────────────────────────────────────────────
 ;  Bar click → open/close table
@@ -283,13 +273,10 @@ CurrencyCounter_BarClick()
     local
     global vars, settings
 
-    ; Check if click is on the drag handle (top-left area) – if so, don't open table
     check := LLK_HasVal(vars.hwnd.currency_counter, vars.general.cMouse)
     If (check = "drag")
-        Return ; let CurrencyCounter_Click() handle dragging
-
-    LLK_ToolTip("BARclicked",1.5)
-    CurrencyCounter_TableToggle()
+        Return
+    CurrencyCounter_Logs()
 }
 
 ; ──────────────────────────────────────────────────────────────
@@ -313,8 +300,8 @@ CurrencyCounter_RClick()
     If Blank(name)
         Return
     name := Format("{:U}", name)
-    If InStr(name, "OMEN")
-        Return
+    ; If InStr(name, "OMEN") ; TODO: when GGG adds omen message to logs, add this back
+    ;     Return
     vars.currency_counter.picked := 1
     vars.currency_counter.name := name
     If !IsObject(vars.currency_counter.currencies[name])
@@ -521,8 +508,8 @@ CurrencyCounter_DrawBar()
     fSize := settings.currency_counter.fSize
     fH := settings.currency_counter.fHeight
     fW := settings.currency_counter.fWidth
-    barW := 200
-    barH := 40
+    barW := 300
+    barH := 30
     dragSz := Floor(fW * 0.6)
 
     held_name := vars.currency_counter.picked ? vars.currency_counter.name : ""

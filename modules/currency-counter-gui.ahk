@@ -305,8 +305,8 @@ CurrencyCounter_Logs(cHWND := "")
 					minutes := Floor(hours * 60)
 					age_string := (minutes >= 1) ? minutes "m" : "now"
 				}
-				; Colour: red if 1 hour or older, otherwise lime
-				age_color := (hours >= 1) ? "Red" : "Lime"
+				; Colour: red if at warning threshold or older, otherwise lime
+				age_color := (hours >= settings.currency_counter.price_warn_hours) ? "Red" : "Lime"
 			}
 
 			; Dimensions
@@ -335,7 +335,7 @@ CurrencyCounter_Logs(cHWND := "")
 
 		; ── Row 1: chaos → divine ─────────────────────────────
 		tsC := settings.currency_counter.chaos_div_updated
-		colorC := " c" (Blank(tsC) ? "808080" : CurrencyCounter_PriceColor(tsC))
+		colorC := " c" (Blank(tsC) ? "808080" : CurrencyCounter_RateColor(tsC))
 
 		Gui, %GUI_name%: Add, Text, % "x" pickerX " yp-" pickerImgSize - imgSize " Border 0x200 Center cC89B3C w" colW " h" halfH, % Lang_Trans("m_cc_abbr_chaos")
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
@@ -347,7 +347,7 @@ CurrencyCounter_Logs(cHWND := "")
 
 		; ── Row 2: exalt → divine ─────────────────────────────
 		tsE := settings.currency_counter.exalt_div_updated
-		colorE := " c" (Blank(tsE) ? "808080" : CurrencyCounter_PriceColor(tsE))
+		colorE := " c" (Blank(tsE) ? "808080" : CurrencyCounter_RateColor(tsE))
 
 		; Force new row by stepping down from picker start
 		Gui, %GUI_name%: Add, Text, % "x" pickerX " y+-1 Border 0x200 Center cC89B3C w" colW " h" halfH, % Lang_Trans("m_cc_abbr_exalt")
@@ -386,7 +386,7 @@ CurrencyCounter_Logs(cHWND := "")
 
 			; Search Edit (Section anchor for col 1) + add-currency + X reset flush right
 			; Search Edit (Section anchor for col 1) + add-currency + X reset flush right
-			Gui, %GUI_name%: Add, Edit, % "xs Section cBlack gCurrencyCounter_Logs2 HWNDhwnd_search w" width - hEdit * 2 " h" hEdit (!Blank(pCheck := vars.cc_logs.keywords["name"]) ? " cGreen" : ""), % pCheck
+			Gui, %GUI_name%: Add, Edit, % "xs Section cBlack gCurrencyCounter_Logs2 HWNDhwnd_search w" width - hEdit * 2 " h" hEdit ( (pCheck := vars.cc_logs.keywords["name"]) != "" ? " cGreen" : "" ), % (pCheck != "" ? pCheck : vars.currency_counter.name)
 			vars.hwnd.cc_logs.search_name := hwnd_search
 			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center gCurrencyCounter_Logs2 HWNDhwnd c41BB1C 0x200 x+0 w" hEdit " h" hEdit, % "+"
 			vars.hwnd.cc_logs.add_currency_btn := vars.hwnd.help_tooltips["cclogs_add currency"] := hwnd
@@ -462,7 +462,7 @@ CurrencyCounter_Logs(cHWND := "")
 				{
 					chaos := CurrencyCounter_ToChaos(effPrice, effCur) * entry.count
 					cell_text := Round(CurrencyCounter_FromChaos(chaos, settings.currency_counter.display_cur), 1) " " CurrencyCounter_CurAbbr(settings.currency_counter.display_cur) " "
-					color := isNinja ? " cA35200" : (CurrencyCounter_PriceAgeHours(entry.price_updated) >= 6 ? " cFF3333" : " cFFA500"), gLabel := ""
+					color := isNinja ? " cA35200" : (CurrencyCounter_PriceAgeHours(entry.price_updated) >= settings.currency_counter.price_warn_hours ? " cFF3333" : " cFFA500"), gLabel := ""
 				}
 				Else
 				{
@@ -1094,11 +1094,28 @@ CurrencyCounter_NinjaPrice(name)
 CurrencyCounter_PriceColor(ts)
 {
 	local
+	global settings
 	h := CurrencyCounter_PriceAgeHours(ts)
-	If (h >= 12)
+	warn  := settings.currency_counter.price_warn_hours
+	stale := settings.currency_counter.price_stale_hours
+	If (h >= stale)
 		Return "CC3333"
-	If (h >= 6)
-		Return Format("{:02X}{:02X}00", Round(180 + 75 * (h-6)/6), Round(170 * (1-(h-6)/6)))
+	If (h >= warn)
+		Return Format("{:02X}{:02X}00", Round(180 + 75 * (h-warn)/(stale-warn)), Round(170 * (1-(h-warn)/(stale-warn))))
+	Return "4A9E4A"
+}
+
+CurrencyCounter_RateColor(ts)
+{
+	local
+	global settings
+	h := CurrencyCounter_PriceAgeHours(ts)
+	warn  := settings.currency_counter.rate_warn_hours
+	stale := settings.currency_counter.rate_stale_hours
+	If (h >= stale)
+		Return "CC3333"
+	If (h >= warn)
+		Return Format("{:02X}{:02X}00", Round(180 + 75 * (h-warn)/(stale-warn)), Round(170 * (1-(h-warn)/(stale-warn))))
 	Return "4A9E4A"
 }
 

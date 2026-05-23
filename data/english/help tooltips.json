@@ -1154,6 +1154,25 @@
       "uses poe.ninja prices as a fallback when a currency has no manual price, or its price is older than the staleness threshold",
       "orange price = poe.ninja source; brown total = ninja-sourced item total",
       "requires the stash-ninja feature to be enabled(/highlight)"
+    ],
+    "currency_counter price warn": [
+      "after this many hours, a manually-entered price starts turning yellow as a warning",
+      "must be lower than the stale threshold",
+      "click the value to reset to the default (3h)"
+    ],
+    "currency_counter price stale": [
+      "after this many hours, a manually-entered price turns red — considered too old to be reliable",
+      "must be higher than the warning threshold",
+      "click the value to reset to the default (6h)"
+    ],
+    "currency_counter rate warn": [
+      "after this many hours, the chaos/exalt exchange ratio starts turning yellow as a warning",
+      "exchange rates tend to be more stable than prices, so this can usually be set higher",
+      "click the value to reset to the default (3h)"
+    ],
+    "currency_counter rate stale": [
+      "after this many hours, the exchange rate turns red — considered too old to trust for conversions",
+      "click the value to reset to the default (6h)"
     ]
   },
   "alarm": {

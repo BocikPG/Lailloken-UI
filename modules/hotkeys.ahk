@@ -505,12 +505,12 @@ RButton::Sanctum_Relics("click")
 WheelUp::CurrencyCounter_ShiftCarousel("up")
 WheelDown::CurrencyCounter_ShiftCarousel("down")
 
-#If settings.features.currency_counter && vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main)
-LButton::CurrencyCounter_Logs()
-
-#If vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main)
+#If settings.features.currency_counter && vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main) && (vars.general.cMouse = vars.hwnd.currency_counter.drag)
 LButton::CurrencyCounter_Click(1)
 RButton::CurrencyCounter_Click(2)
+
+#If settings.features.currency_counter && vars.hwnd.currency_counter.main && (vars.general.wMouse = vars.hwnd.currency_counter.main) && (vars.general.cMouse != vars.hwnd.currency_counter.drag)
+LButton::CurrencyCounter_BarClick()
 
 #If vars.hwnd.cc_logs.main && (vars.general.wMouse = vars.hwnd.cc_logs.main) && (vars.general.cMouse != vars.hwnd.cc_logs.name_edit) && (vars.general.cMouse != vars.hwnd.cc_logs.search_name)
 LButton::CurrencyCounter_Logs2(vars.general.cMouse)
