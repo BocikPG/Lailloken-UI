@@ -2052,5 +2052,42 @@
       "hold down <alt> to resize instead of moving,\nhold down <ctrl> to move/resize by 10 pixels",
       "click <snip> on a specific slot to save the image into it"
     ]
+  },
+  "cclogs": {
+    "add session": [
+      "creates a new tracking session",
+      "scroll the mouse wheel over the session tabs to cycle through them when more tabs exist than the visible limit"
+    ],
+    "del btn": [
+      "deletes the current session",
+      "click once to be asked for confirmation, then click again within 3 seconds to confirm",
+      "cannot delete the last remaining session"
+    ],
+    "accept btn": [
+      "saves the session name typed in the edit field to the left"
+    ],
+    "ninja fetch": [
+      "manually triggers a poe.ninja price fetch for all tracked stash tabs",
+      "tabs that were fetched recently (within ~1 hour) are skipped automatically",
+      "prices show in orange when sourced from poe.ninja; totals show in yellow when at least one item uses a ninja price"
+    ],
+    "ratio chaos": [
+      "click to set the chaos → divine exchange rate",
+      "enter the value as a decimal (e.g. 200) or a fraction (e.g. 200/1)",
+      "the rate is used to convert prices and totals into your chosen display currency"
+    ],
+    "ratio exalt": [
+      "click to set the exalt → divine exchange rate",
+      "enter the value as a decimal or a fraction (e.g. 150/1)",
+      "the rate is used to convert prices and totals into your chosen display currency"
+    ],
+    "add currency": [
+      "adds the text in the search box as a new custom currency entry with a count of 1",
+      "click once to be asked for confirmation, then click again within 3 seconds to confirm",
+      "if the currency already exists but has a count of 0, it is reset to 1 instead"
+    ],
+    "filter reset": [
+      "clears the search filter and shows all tracked currencies"
+    ]
   }
 }

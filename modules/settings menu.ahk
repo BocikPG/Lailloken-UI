@@ -5704,7 +5704,7 @@ Settings_currency_counter()
 
     ; ── Enable ────────────────────────────────────────────────
     Gui, %GUI%: Add, Checkbox, % "xs y+" vars.settings.spacing " Section gSettings_currency_counter2 HWNDhwnd Checked" settings.features.currency_counter
-        , % "Enable Currency Counter"
+        , % Lang_Trans("m_cc_enable")
     vars.hwnd.settings.currency_counter_enable := vars.hwnd.help_tooltips["settings_currency_counter enable"] := hwnd
 
     If !settings.features.currency_counter
@@ -5721,7 +5721,7 @@ Settings_currency_counter()
     vars.hwnd.settings.currency_counter_apply := hwnd
 
     Gui, %GUI%: Add, Checkbox, % "xs Section gSettings_currency_counter2 HWNDhwnd Checked" settings.currency_counter.ssf
-        , % "SSF (Solo Self-Found) mode"
+        , % Lang_Trans("m_cc_ssf")
     vars.hwnd.settings.currency_counter_ssf := vars.hwnd.help_tooltips["settings_currency_counter ssf"] := hwnd
 
     ; ── UI ────────────────────────────────────────────────────
@@ -5740,7 +5740,7 @@ Settings_currency_counter()
     vars.hwnd.settings.currency_counter_fplus := hwnd
 
     ; Tab spacing  –/N/+
-    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing/2, % "Tab spacing:"
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing/2, % Lang_Trans("m_cc_tab_spacing")
     vars.hwnd.help_tooltips["settings_currency_counter spacing"] := hwnd
     Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/2 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "–"
     vars.hwnd.settings.currency_counter_sminus := hwnd
@@ -5749,10 +5749,10 @@ Settings_currency_counter()
     Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "+"
     vars.hwnd.settings.currency_counter_splus := hwnd
 
-    ; Visible sessions  –/N/+
+    ; Visible sessions  –/N/+ [reset]
     visDefault := settings.currency_counter.ssf ? 2 : 4
     visCur := settings.currency_counter.visibleCount > 0 ? settings.currency_counter.visibleCount : visDefault
-    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing/2, % "Visible sessions:"
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing/2, % Lang_Trans("m_cc_visible_sessions")
     vars.hwnd.help_tooltips["settings_currency_counter visible sessions"] := hwnd
     Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/2 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "–"
     vars.hwnd.settings.currency_counter_vminus := hwnd
@@ -5760,33 +5760,32 @@ Settings_currency_counter()
     vars.hwnd.settings.currency_counter_vcount := hwnd
     Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/4 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "+"
     vars.hwnd.settings.currency_counter_vplus := hwnd
+    Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/2 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*3 " " (settings.currency_counter.visibleCount > 0 ? "" : "c808080"), % Lang_Trans("global_reset")
+    vars.hwnd.settings.currency_counter_vreset := hwnd
 
     ; ── poe.ninja ─────────────────────────────────────────────
     Gui, %GUI%: Font, bold underline
-    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing, % "poe.ninja:"
+    Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing, % Lang_Trans("m_cc_ninja_section")
     Gui, %GUI%: Font, norm
 
-    ; Ninja prices — single checkbox when enabled (click + tooltip work normally)
-    ; Split into bare checkbox + Text label when disabled (avoids Windows double-render)
     ninjaEnabled := settings.features.stash
     If ninjaEnabled
     {
         Gui, %GUI%: Add, Checkbox, % "xs Section gSettings_currency_counter2 HWNDhwnd Checked" settings.currency_counter.ninja_prices
-            , % "Use poe.ninja prices as fallback"
+            , % Lang_Trans("m_cc_ninja_prices")
         vars.hwnd.settings.currency_counter_ninja := vars.hwnd.help_tooltips["settings_currency_counter ninja"] := hwnd
     }
     Else
     {
         Gui, %GUI%: Add, Checkbox, % "xs Section Disabled HWNDhwnd Checked" settings.currency_counter.ninja_prices, % ""
         vars.hwnd.settings.currency_counter_ninja := hwnd
-        Gui, %GUI%: Add, Text, % "ys x+0 c808080 HWNDhwnd", % "Use poe.ninja prices as fallback"
+        Gui, %GUI%: Add, Text, % "ys x+0 c808080 HWNDhwnd", % Lang_Trans("m_cc_ninja_prices")
         vars.hwnd.help_tooltips["settings_currency_counter ninja"] := hwnd
     }
 
-    ; Ninja stale threshold — only shown when ninja prices are enabled
     If (settings.currency_counter.ninja_prices && ninjaEnabled)
     {
-        Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing/2, % "Price stale after (h):"
+        Gui, %GUI%: Add, Text, % "xs Section y+" vars.settings.spacing/2, % Lang_Trans("m_cc_ninja_stale")
         vars.hwnd.help_tooltips["settings_currency_counter ninja stale"] := hwnd
         Gui, %GUI%: Add, Text, % "ys x+" settings.general.fWidth/2 " Center Border gSettings_currency_counter2 HWNDhwnd w" settings.general.fWidth*2, % "–"
         vars.hwnd.settings.currency_counter_nminus := hwnd
@@ -5854,6 +5853,15 @@ Settings_currency_counter2(cHWND)
         delta := (cHWND = vars.hwnd.settings.currency_counter_vplus) ? 1 : -1
         settings.currency_counter.visibleCount := Max(1, Min(8, cur + delta))
         IniWrite, % settings.currency_counter.visibleCount, % "ini" vars.poe_version "\currency-counter.ini", settings, visible-sessions
+        Settings_menu("currency-counter")
+        If WinExist("ahk_id " vars.hwnd.cc_logs.main)
+            CurrencyCounter_Logs()
+        Return
+    }
+    If (cHWND = vars.hwnd.settings.currency_counter_vreset)
+    {
+        settings.currency_counter.visibleCount := 0
+        IniDelete, % "ini" vars.poe_version "\currency-counter.ini", settings, visible-sessions
         Settings_menu("currency-counter")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
