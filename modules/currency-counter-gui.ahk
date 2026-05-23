@@ -127,6 +127,7 @@ CurrencyCounter_Logs(cHWND := "")
 	Gui, %GUI_name%: Font, % "s" fSize2 " cWhite", % vars.system.font
 	hwnd_old := vars.hwnd.cc_logs.main
 	vars.hwnd.cc_logs := {"main": cc_logs, "toggle": toggle}
+	vars.hwnd.cclogs := vars.hwnd.cc_logs ; alias for Gui_HelpToolTip prefix resolution
 
 	; ══════════════════════════════════════════════════════════
 	;  Drag box – dynamically adjusts to actual window width
@@ -211,7 +212,7 @@ CurrencyCounter_Logs(cHWND := "")
 	Gui, %GUI_name%: Font, % "s" fSize2 * 3 " c41BB1C", % vars.system.font
 	Gui, %GUI_name%: Add, Text, % "yp x" totalWidth - newSessionButtonWidth - spacing " w" newSessionButtonWidth " h" itemHeight " Border Center 0x200 gCurrencyCounter_Logs2 HWNDhwnd", % " + "
 	Gui, %GUI_name%: Font, % "s" fSize2 " cWhite", % vars.system.font
-	vars.hwnd.cc_logs.add_session := hwnd
+	vars.hwnd.cc_logs.add_session := vars.hwnd.help_tooltips["cclogs_add session"] := hwnd
 
 	; ══════════════════════════════════════════════════════════
 	;  INFO BAR  – image | session label | name edit | delete | spacer | currency picker (right-aligned)
@@ -244,12 +245,14 @@ CurrencyCounter_Logs(cHWND := "")
 	; ── Accept button (X) with progress bar ───────────────────
 	accSize := imgSize
 	Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center c41BB1C gCurrencyCounter_Logs2 HWNDhwnd w" accSize " h" accSize, % " + "
+	vars.hwnd.help_tooltips["cclogs_accept btn"] := hwnd
 	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cRed HWNDhwnd range0-500", 0
 	vars.hwnd.cc_logs.accept_btn := hwnd
 
 	; ── Delete button (X) with progress bar ───────────────────
 	delSize := accSize / 2
 	Gui, %GUI_name%: Add, Text, % "x+" delSize /2 " ys+" delSize /2 "yp Border 0x200 Center cCC3333 gCurrencyCounter_Logs2 HWNDhwnd w" delSize " h" delSize, % "X"
+	vars.hwnd.help_tooltips["cclogs_del btn"] := hwnd
 	Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled BackgroundBlack cRed HWNDhwnd range0-500", 0
 	vars.hwnd.cc_logs.del_btn := hwnd
 
@@ -276,8 +279,8 @@ CurrencyCounter_Logs(cHWND := "")
 		Gui, %GUI_name%: Add, Text, % "x" pickerX - fetchBtnW - 1 " yp-" pickerImgSize - imgSize - 1 " 0x200 " border " Center cFF8800 " g " HWNDhwnd w" fetchBtnW " h" halfH, % txt
 		
 		If (settings.currency_counter.ninja_prices && settings.features.stash)
-			vars.hwnd.cc_logs.ninja_fetch_btn := hwnd
-		
+			vars.hwnd.cc_logs.ninja_fetch_btn := vars.hwnd.help_tooltips["cclogs_ninja fetch"] := hwnd
+
 		; ── Row 1: chaos → divine ─────────────────────────────
 		tsC := settings.currency_counter.chaos_div_updated
 		colorC := " c" (Blank(tsC) ? "808080" : CurrencyCounter_PriceColor(tsC))
@@ -286,7 +289,7 @@ CurrencyCounter_Logs(cHWND := "")
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
 		Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center gCurrencyCounter_Logs2 HWNDhwnd" colorC " w" midW " h" halfH, % CurrencyCounter_DecimalToFraction(settings.currency_counter.chaos_div,1000)
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
-		vars.hwnd.cc_logs.ratio_chaos_btn := hwnd
+		vars.hwnd.cc_logs.ratio_chaos_btn := vars.hwnd.help_tooltips["cclogs_ratio chaos"] := hwnd
 		Gui, %GUI_name%: Add, Text, % "ys yp Border 0x200 Center cC89B3C w" colW " h" halfH, % Lang_Trans("m_cc_abbr_divine")
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Border Disabled Background1A1A1A HWNDhwnd", 0
 
@@ -299,7 +302,7 @@ CurrencyCounter_Logs(cHWND := "")
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Disabled Background1A1A1A HWNDhwnd", 0
 		Gui, %GUI_name%: Add, Text, % "x" pickerX + colW - 1 " yp Border 0x200 Center gCurrencyCounter_Logs2 HWNDhwnd" colorE " w" midW " h" halfH, % CurrencyCounter_DecimalToFraction(settings.currency_counter.exalt_div,1000)
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Disabled Background1A1A1A HWNDhwnd", 0
-		vars.hwnd.cc_logs.ratio_exalt_btn := hwnd
+		vars.hwnd.cc_logs.ratio_exalt_btn := vars.hwnd.help_tooltips["cclogs_ratio exalt"] := hwnd
 		Gui, %GUI_name%: Add, Text, % "x" pickerX + colW + midW - 2 " yp Border 0x200 Center cC89B3C w" colW " h" halfH, % Lang_Trans("m_cc_abbr_divine")
 		Gui, %GUI_name%: Add, Progress, % "xp yp wp hp Disabled Background1A1A1A HWNDhwnd", 0
 
@@ -334,9 +337,9 @@ CurrencyCounter_Logs(cHWND := "")
 			Gui, %GUI_name%: Add, Edit, % "xs Section cBlack gCurrencyCounter_Logs2 HWNDhwnd_search w" width - hEdit * 2 " h" hEdit (!Blank(pCheck := vars.cc_logs.keywords["name"]) ? " cGreen" : ""), % pCheck
 			vars.hwnd.cc_logs.search_name := hwnd_search
 			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center gCurrencyCounter_Logs2 HWNDhwnd c41BB1C 0x200 x+0 w" hEdit " h" hEdit, % "+"
-			vars.hwnd.cc_logs.add_currency_btn := hwnd
+			vars.hwnd.cc_logs.add_currency_btn := vars.hwnd.help_tooltips["cclogs_add currency"] := hwnd
 			Gui, %GUI_name%: Add, Text, % "ys Border BackgroundTrans Center gCurrencyCounter_Logs2 HWNDhwnd cRed 0x200 x+0 w" hEdit " h" hEdit, % "X"
-			vars.hwnd.cc_logs.filter_reset := hwnd
+			vars.hwnd.cc_logs.filter_reset := vars.hwnd.help_tooltips["cclogs_filter reset"] := hwnd
 		}
 		Else If (header = "total")
 		{
