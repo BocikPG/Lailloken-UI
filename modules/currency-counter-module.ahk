@@ -295,17 +295,20 @@ CurrencyCounter_RClick()
         Return
     }
 
+    If GetKeyState("Ctrl", "P")
+        Return
+
     ; Pick currency from item under cursor
     name := CurrencyCounter_ReadItemName()
     If Blank(name)
         Return
     name := Format("{:U}", name)
-    ; If InStr(name, "OMEN") ; TODO: when GGG adds omen message to logs, add this back
-    ;     Return
+    If InStr(name, "OMEN") ; Thanks GGG :D
+        Return
     vars.currency_counter.picked := 1
     vars.currency_counter.name := name
     If !IsObject(vars.currency_counter.currencies[name])
-        vars.currency_counter.currencies[name] := {"count": 0, "price": 0.0, "price_currency": "chaos", "price_updated": 0}
+        vars.currency_counter.currencies[name] := {"count": 0, "price": 0.0, "price_currency": "exalt", "price_updated": 0}
     CurrencyCounter_DrawBar()
 }
 
@@ -342,7 +345,7 @@ CurrencyCounter_LClick()
     ; --- Use the (possibly substituted) currency name for counting ---
     if(Blank(vars.currency_counter.currencies[vars.currency_counter.name]))
     {
-        vars.currency_counter.currencies[vars.currency_counter.name] := {"count": 0, "price": 0.0, "price_currency": "chaos", "price_updated": 0}
+        vars.currency_counter.currencies[vars.currency_counter.name] := {"count": 0, "price": 0.0, "price_currency": "exalt", "price_updated": 0}
     }
     vars.currency_counter.currencies[vars.currency_counter.name].count += 1
     vars.currency_counter.last_used := vars.currency_counter.name
@@ -411,11 +414,11 @@ CurrencyCounter_ProcessLog(line)
     local
     global vars, settings
 
-    If RegExMatch(line, "i)(.+?) in your inventory has been consumed", m)
+    If RegExMatch(line, "i)(?:<colour:[^>]+>)?\{?(omen\s+\S.+?) in your inventory has been consumed\}?", m)
     {
         currency_name := Format("{:U}", Trim(m1))
         If !IsObject(vars.currency_counter.currencies[currency_name])
-            vars.currency_counter.currencies[currency_name] := {"count": 0, "price": 0.0, "price_currency": "chaos", "price_updated": 0}
+            vars.currency_counter.currencies[currency_name] := {"count": 0, "price": 0.0, "price_currency": "exalt", "price_updated": 0}
         vars.currency_counter.currencies[currency_name].count += 1
         CurrencyCounter_SaveCurrency(currency_name)
         CurrencyCounter_DrawBar()
@@ -1118,7 +1121,7 @@ CurrencyCounter_Logs2(cHWND)
 		add_cur_confirm := 0, add_cur_confirm_ts := 0
 		If !IsObject(vars.currency_counter.currencies[label])
 		{
-			vars.currency_counter.currencies[label] := {"count": 1, "price": 0.0, "price_currency": "chaos", "price_updated": 0}
+			vars.currency_counter.currencies[label] := {"count": 1, "price": 0.0, "price_currency": "exalt", "price_updated": 0}
 			CurrencyCounter_SaveCurrency(label)
 		}
 		Else If (vars.currency_counter.currencies[label].count = 0)
