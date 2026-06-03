@@ -104,42 +104,42 @@ Loop()
 		vars.sanctum.active := 1
 	Else vars.sanctum.active := 0
 
-	If WinExist("LLK-UI: relic manager")
-		vars.sanctum.active_relics := 1
-	Else vars.sanctum.active_relics := 0
+		If WinExist("LLK-UI: relic manager")
+			vars.sanctum.active_relics := 1
+		Else vars.sanctum.active_relics := 0
 
-	If WinExist("LLK-UI: Settings Menu (")
-	{
-		WinGetTitle, title, % "LLK-UI: Settings Menu ("
-		title := SubStr(title, InStr(title, "(") + 1), vars.settings.active := SubStr(title, 1, -1)
-	}
-	Else vars.settings.active := ""
+			If WinExist("LLK-UI: Settings Menu (")
+			{
+				WinGetTitle, title, % "LLK-UI: Settings Menu ("
+				title := SubStr(title, InStr(title, "(") + 1), vars.settings.active := SubStr(title, 1, -1)
+			}
+			Else vars.settings.active := ""
 
-	If WinExist("LLK-UI: vaal street")
-		vars.exchange.active := 1
-	Else vars.exchange.active := 0
+				If WinExist("LLK-UI: vaal street")
+					vars.exchange.active := 1
+				Else vars.exchange.active := 0
 
-	If (tick = 5) && vars.PID ;in case the main thread crashes without sending the 0x8000 message
-	{
-		tick := 0
-		Process, Exist, % vars.PID
-		If !ErrorLevel
-			ExitApp
-	}
+					If (tick = 5) && vars.PID ;in case the main thread crashes without sending the 0x8000 message
+					{
+						tick := 0
+						Process, Exist, % vars.PID
+						If !ErrorLevel
+							ExitApp
+					}
 
 	If !vars.pixelsearch.wait
 		For pixel in vars.pixelsearch.list
 			If (pixel = "close_button") && settings.cloneframes.closebutton_toggle && vars.cloneframes.enabled
-			|| (pixel = "gamescreen") && vars.cloneframes.gamescreen
-			|| (pixel = "inventory") && (vars.cloneframes.inventory || settings.features.iteminfo * settings.iteminfo.compare || vars.exchange.active || vars.sanctum.active_relics)
+				|| (pixel = "gamescreen") && vars.cloneframes.gamescreen
+				|| (pixel = "inventory") && (vars.cloneframes.inventory || settings.features.iteminfo * settings.iteminfo.compare || vars.exchange.active || vars.sanctum.active_relics)
 				vars.pixels[pixel] := Screenchecks_PixelSearch(pixel)
 			Else vars.pixels[pixel] := 0
 
-	If vars.pixels.Count() && ((check := json.dump({"clone-speed": Round(1000/vars.cloneframes.ms), "pixels": vars.pixels.Clone()})) != comms_last)
-	{
-		GuiControl, Text, % vars.hwnd.comms, % StrReplace(StrReplace(check, "{""", "{`n"""), """,""", """,`n""")
-		comms_last := check
-	}
+				If vars.pixels.Count() && ((check := json.dump({"clone-speed": Round(1000/vars.cloneframes.ms), "pixels": vars.pixels.Clone()})) != comms_last)
+				{
+					GuiControl, Text, % vars.hwnd.comms, % StrReplace(StrReplace(check, "{""", "{`n"""), """,""", """,`n""")
+					comms_last := check
+				}
 }
 
 Loop_clone()
@@ -176,7 +176,7 @@ StringReceive(wParam, string) ;based on example #4 on https://www.autohotkey.com
 			For key, val in json.load(SubStr(string, InStr(string, "=") + 1))
 				vars.cloneframes.list[key] := val.Clone()
 		Else vars.cloneframes.editing := SubStr(string, InStr(string, "=") + 1)
-		vars.cloneframes.wait := 0
+			vars.cloneframes.wait := 0
 	}
 	Else If InStr(string, "pixel-")
 	{
@@ -206,8 +206,8 @@ StringReceive(wParam, string) ;based on example #4 on https://www.autohotkey.com
 #If (vars.log.areaID = vars.maptracker.map.id) && settings.features.maptracker && settings.maptracker.mechanics && settings.maptracker.portal_reminder && vars.maptracker.map.content.Count() && WinActive("ahk_id " vars.hwnd.poe_client) ;pre-defined context for hotkey command
 #If vars.hwnd.stash.main && WinExist("ahk_id " vars.hwnd.stash.main) && InStr(vars.stash.hover, "tab_")
 #If vars.hwnd.stash.main && WinExist("ahk_id " vars.hwnd.stash.main) && IsObject(vars.stash.regex)
-&& LLK_IsBetween(vars.general.xMouse, vars.client.x + vars.stash.regex.x, vars.client.x + vars.stash.regex.x + vars.stash.regex.w)
-&& LLK_IsBetween(vars.general.yMouse, vars.client.y + vars.stash.regex.y, vars.client.y + vars.stash.regex.y + vars.stash.regex.h)
+		&& LLK_IsBetween(vars.general.xMouse, vars.client.x + vars.stash.regex.x, vars.client.x + vars.stash.regex.x + vars.stash.regex.w)
+		&& LLK_IsBetween(vars.general.yMouse, vars.client.y + vars.stash.regex.y, vars.client.y + vars.stash.regex.y + vars.stash.regex.h)
 #If vars.leveltracker.skilltree_schematics.GUI && WinExist("ahk_id " vars.hwnd.skilltree_schematics.main)
 #If settings.features.sanctum && vars.sanctum.active && WinExist("ahk_id " vars.hwnd.sanctum.second) && !vars.sanctum.lock ;last condition needed to make the space-key usable again after initial lock
 #If settings.features.sanctum && vars.sanctum.active && WinExist("ahk_id " vars.hwnd.sanctum.second)
