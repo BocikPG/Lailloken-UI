@@ -1,8 +1,23 @@
 [
   [
+	["1.63.2", 16302],
+	"june 3, 2026",
+	"stash-ninja:\n>> updated to 0.5",
+	"statlas:\n>> added a couple of 0.5 maps"
+  ],
+  [
+	["1.63.1", 16301],
+	"june 1, 2026",
+	"act-tracker:\n>> updated guaranteed league-rewards\n>> switched around mastodon badlands and keth\n>> fixed guide being stuck at the end of a2\n>> act 4 shark and map-hunt quest are no longer optional\n>> aldur quest-line will be added next release (need to figure out campaign runs after first)",
+	"enchant-finder:\n>> updated to 0.5, now supports new emotions",
+	"item-info:\n>> updated item mods and bases to 0.5\n>> updated unique drop-tiers to poeladder's current data"
+  ],
+  [
 	["1.63.0", 16300, 1],
 	"may 28, 2026",
-	"early 0.5 release (limited functionality in 0.4.x, please read full notes!)(/highlight)"
+	"act-tracker:\n>> added the campaign changes that have been teased so far\n>> added extra highlighting to gem optionals when a new tier is available\n>> updated a4 for the seasonal matiki shuffle",
+	"act-decoder:\n>> may be moderately to severely outdated for the foreseeable future\n>> make sure to rebind it (or disable it) so hint images are accessible in the guide(/highlight)",
+	"item-info:\n>> fixed potentially inaccurate iron rune scaling on talismans"
   ],
   [
 	["1.62.7", 16207, 1],
