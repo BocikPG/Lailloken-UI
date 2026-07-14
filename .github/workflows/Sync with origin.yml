@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 # ===== CHANGE THESE =====
 env:
-  UPSTREAM_REPO: 'owner/upstream-repo'   # e.g., 'kubernetes/kubernetes'
+  UPSTREAM_REPO: 'Lailloken/Exile-UI'   # e.g., 'kubernetes/kubernetes'
   UPSTREAM_BRANCH: 'main'                # Branch to sync from upstream
   FORK_BRANCH: 'main'                    # Your fork's default branch
   RELEASE_TAG_SUFFFIX: '.1'              # Your tags will be 'v1.2.3.1'
