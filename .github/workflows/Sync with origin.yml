@@ -1,0 +1,106 @@
+name: Upstream Sync & Release
+on:
+  # Check every 6 hours
+  schedule:
+    - cron: '0 */6 * * *'
+  # Allow manual trigger
+  workflow_dispatch:
+# ===== CHANGE THESE =====
+env:
+  UPSTREAM_REPO: 'owner/upstream-repo'   # e.g., 'kubernetes/kubernetes'
+  UPSTREAM_BRANCH: 'main'                # Branch to sync from upstream
+  FORK_BRANCH: 'main'                    # Your fork's default branch
+  RELEASE_TAG_SUFFFIX: '.1'              # Your tags will be 'v1.2.3.1'
+permissions:
+  contents: write    # Needed to push tags and create releases
+jobs:
+  sync-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout your fork
+      - name: Checkout your fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      # 2. Setup Git identity
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      # 3. Add upstream remote (so we can fetch tags later)
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/${{ env.UPSTREAM_REPO }}.git
+      # 4. --- USE THE EXISTING ACTION TO MERGE UPSTREAM ---
+      # This handles conflicts, fast-forwards, and pushes to your fork.
+      - name: Sync fork with upstream (using tgymnich/fork-sync)
+        id: sync
+        uses: tgymnich/fork-sync@v1.8
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          owner: ${{ github.repository_owner }}
+          base: ${{ env.FORK_BRANCH }}
+          head: ${{ env.UPSTREAM_BRANCH }}
+          upstream_repo: ${{ env.UPSTREAM_REPO }}
+          merge_method: merge   # Uses 'git merge --no-ff'
+          # If there's a conflict, this action will fail and stop the workflow.
+          # You will get a GitHub notification to resolve it manually.
+      # 5. Fetch all tags from upstream (including the release tags)
+      - name: Fetch upstream tags
+        run: git fetch upstream --tags --force
+      # 6. Get the latest release tag from the upstream repo, and work out
+      #    the tag we'll actually push, inserting RELEASE_TAG_SUFFFIX right
+      #    after the version core (e.g. v1.62.7) and BEFORE any trailing
+      #    hotfix-style marker the upstream tag might carry (e.g. "-hotfix.1"),
+      #    so a hotfix tag like "v1.62.7-hotfix.1" becomes
+      #    "v1.62.7.1-hotfix.1" rather than "v1.62.7-hotfix.1.1".
+      - name: Get latest upstream release tag
+        id: upstream_info
+        run: |
+          TAG=$(gh release list -R ${{ env.UPSTREAM_REPO }} -L 1 --json tagName --jq '.[0].tagName')
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$TAG" ]; then
+            if [[ "$TAG" =~ ^(v?[0-9]+(\.[0-9]+){1,3})(.*)$ ]]; then
+              VERSION_CORE="${BASH_REMATCH[1]}"
+              TAG_REMAINDER="${BASH_REMATCH[3]}"
+            else
+              # Tag didn't match the expected "vX.Y[.Z[.W]]" pattern at all;
+              # fall back to appending the suffix at the very end so the
+              # workflow doesn't crash on an unexpected tag format.
+              VERSION_CORE="$TAG"
+              TAG_REMAINDER=""
+            fi
+            NEW_TAG="${VERSION_CORE}${{ env.RELEASE_TAG_SUFFFIX }}${TAG_REMAINDER}"
+            echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 7. Check if we already synced this specific release tag
+      - name: Check if release already synced
+        id: check
+        if: steps.upstream_info.outputs.tag != ''
+        run: |
+          NEW_TAG="${{ steps.upstream_info.outputs.new_tag }}"
+          if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      # 8. --- YOUR CUSTOM PART: CREATE THE RELEASE ---
+      - name: Create your own Release from the synced commit
+        if: steps.check.outputs.exists == 'false' && steps.upstream_info.outputs.tag != ''
+        run: |
+          UPSTREAM_TAG="${{ steps.upstream_info.outputs.tag }}"
+          NEW_TAG="${{ steps.upstream_info.outputs.new_tag }}"
+          # The sync action already merged and pushed to your branch.
+          # The current HEAD is the merged commit.
+          # Tag that commit and push the tag.
+          git tag "$NEW_TAG"
+          git push origin "$NEW_TAG"
+          # Create the GitHub Release in your fork
+          gh release create "$NEW_TAG" \
+            --title "Synced from upstream ${UPSTREAM_TAG}" \
+            --notes "This release automatically merges upstream ${UPSTREAM_TAG} into the fork."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
