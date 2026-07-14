@@ -79,6 +79,7 @@ Init_recombination(), LLK_Log("initialized recombination settings")
 Init_sanctum(), LLK_Log("initialized sanctum planner settings")
 Init_stash(), LLK_Log("initialized stash-ninja settings")
 Init_statlas(), LLK_Log("initialized statlas settings")
+Init_Runeshape(), LLK_Log("initialized rune-ninja settings")
 Init_hotkeys(), LLK_Log("initialized hotkey settings")
 Resolution_check()
 
@@ -105,7 +106,7 @@ If (check := LLK_IniRead("ini" vars.poe_version "\config.ini", "versions", "relo
 }
 If vars.ini_integrity
 {
-	MsgBox, % "The tool tried to fix misconfigured config-files in order to resolve an AHK bug, but there was an error.`n`nTo fix this manually, you have to open the files listed below (left) in a text-editor and copy their contents into the fixed files (right), replacing everything inside:`n`n" vars.ini_integrity "`n`nThis list is also stored in ""ini\file check.ini"" in case you want to do it later.`nIf you skip this manual fix, you'll have to reconfigure those features that rely on the files listed above."
+	MsgBox,, Exile UI, % "The tool tried to fix misconfigured config-files in order to resolve an AHK bug, but there was an error.`n`nTo fix this manually, you have to open the files listed below (left) in a text-editor and copy their contents into the fixed files (right), replacing everything inside:`n`n" vars.ini_integrity "`n`nThis list is also stored in ""ini\file check.ini"" in case you want to do it later.`nIf you skip this manual fix, you'll have to reconfigure those features that rely on the files listed above."
 	Reload
 	ExitApp
 }
@@ -138,6 +139,7 @@ Return
 #Include modules\omni-key.ahk
 #Include modules\qol tools.ahk
 #Include modules\recombination.ahk
+#Include modules\rune-ninja.ahk
 #Include modules\sanctum.ahk
 #Include modules\screen-checks.ahk
 #Include modules\search-strings.ahk
@@ -281,6 +283,7 @@ Init_client()
 			IniDelete, % "ini" vars.poe_version "\config.ini", Settings, custom-width
 			ini.settings["custom-width"] := ini.settings["custom-resolution"] := "", ini.settings["remove window-borders"] := 0
 		}
+		Else IniWrite, % vars.client.fullscreen, % "ini" vars.poe_version "\config.ini", Settings, fullscreen
 
 		If !game_config.language.language || (game_config.language.language = "en")
 			settings.general.lang_client0 := (!game_config.language.language && InStr(vars.log.file_location, "kakao") ? "ko-kr" : "english")
@@ -326,7 +329,16 @@ Init_client()
 
 	If !vars.client.stream
 	{
-		vars.client.docked := !Blank(check := ini.settings["window-position"]) ? check : "center", vars.client.docked2 := !Blank(check := ini.settings["window-position vertical"]) ? check : "top"
+		vars.client.docked := !Blank(check := ini.settings["window-position"]) ? check : 2, vars.client.docked2 := !Blank(check := ini.settings["window-position vertical"]) ? check : 1
+		For index, val in ["", "2"]
+			If !IsNumber(vars.client["docked" val])
+				For index2, val2 in (!val ? ["left", "center", "right"] : ["top", "center", "bottom", "taskbar"])
+					If (vars.client["docked" val] = val2)
+						vars.client["docked" val] := index2
+		If !IsNumber(vars.client.docked)
+			vars.client.docked := 2
+		If !IsNumber(vars.client.docked2)
+			vars.client.docked2 := 1
 		vars.client.borderless := (vars.client.fullscreen = "true") ? 1 : !Blank(check := ini.settings["remove window-borders"]) ? check : 0
 		vars.client.customres := [ini.settings["custom-width"], ini.settings["custom-resolution"]]
 	}
@@ -334,7 +346,7 @@ Init_client()
 	{
 		If (vars.client.customres.1 > vars.monitor.w) || (vars.client.customres.2 > vars.monitor.h) ;check resolution in case of manual .ini edit
 		{
-			MsgBox, Incorrect settings for forced resolution detected.`nThe script will reset the settings and restart.
+			MsgBox,, Exile UI, Incorrect settings for forced resolution detected.`nThe script will reset the settings and restart.
 			IniWrite, % vars.monitor.h, % "ini" vars.poe_version "\config.ini", Settings, custom-resolution
 			IniWrite, % vars.monitor.w, % "ini" vars.poe_version "\config.ini", Settings, custom-width
 			Reload
@@ -355,12 +367,19 @@ Init_client()
 	}
 
 	WinGetPos, x, y, w, h, ahk_group poe_window
+	If (vars.client.docked2 = 4)
+	{
+		WinGetPos,,,, hTaskbar, ahk_class Shell_TrayWnd
+		If !IsNumber(hTaskbar) || (h + hTaskbar > vars.monitor.h)
+			vars.client.docked2 := 1
+	}
 	vars.client.x_offset := (vars.client.fullscreen = "false" && !vars.client.borderless) ? vars.system.xborder : 0
-	xTarget := (vars.client.docked = "left") ? vars.monitor.x - vars.client.x_offset : (vars.client.docked = "center") ? vars.monitor.x + (vars.monitor.w - w) / 2 : vars.monitor.x + vars.monitor.w - (w - vars.client.x_offset)
-	yTarget := (vars.client.docked2 = "top") ? vars.monitor.y : (vars.client.docked2 = "center") ? vars.monitor.y + (vars.monitor.h - h)/2 : vars.monitor.y + vars.monitor.h - (h - (vars.client.borderless ? 0 : vars.system.yBorder))
+	xTarget := (vars.client.docked = 1) ? vars.monitor.x - vars.client.x_offset : (vars.client.docked = 2) ? vars.monitor.x + (vars.monitor.w - w) / 2 : vars.monitor.x + vars.monitor.w - (w - vars.client.x_offset)
+	yTarget := (vars.client.docked2 = 1) ? vars.monitor.y : (vars.client.docked2 = 2) ? vars.monitor.y + (vars.monitor.h - h)/2 : vars.monitor.y + vars.monitor.h - (h - (vars.client.borderless ? 0 : vars.system.yBorder))
+
 	If !vars.client.stream && ((vars.client.fullscreen = "false") || (vars.client.w < vars.monitor.w) || (vars.client.h < vars.monitor.h))
 	{
-		WinMove, ahk_group poe_window,, % xTarget, % yTarget
+		WinMove, ahk_group poe_window,, % xTarget, % yTarget - (vars.client.docked2 = 4 ? hTaskbar : 0)
 		WinGetPos, x, y, w, h, ahk_group poe_window
 		LLK_Log("repositioned game-client")
 	}
@@ -386,7 +405,7 @@ Init_client()
 			vars.general.supported_resolutions := {}, vars.general.available_resolutions := ""
 		vars.general.supported_resolutions[StrReplace(A_LoopField, "p")] := 1
 		If (StrReplace(A_Loopfield, "p") <= vars.monitor.h && (vars.client.fullscreen = "true" || vars.client.borderless)) || (StrReplace(A_LoopField, "p") < vars.monitor.h && (vars.client.fullscreen = "false") && !vars.client.borderless)
-			vars.general.available_resolutions := !vars.general.available_resolutions ? StrReplace(A_Loopfield, "p") :  StrReplace(A_Loopfield, "p") "|" vars.general.available_resolutions
+			vars.general.available_resolutions := !vars.general.available_resolutions ? StrReplace(A_Loopfield, "p") : StrReplace(A_Loopfield, "p") "|" vars.general.available_resolutions
 	}
 	vars.general.available_resolutions .= "|"
 
@@ -434,7 +453,7 @@ Init_general()
 	{
 		FileDelete, % "img\Recognition (" vars.client.h "p)\GUI\betrayal.bmp"
 		If ini.features["enable betrayal-info"]
-			MsgBox, % "The betrayal image-check was changed in v1.53.3 and needs to be recalibrated."
+			MsgBox,, Exile UI, % "The betrayal image-check was changed in v1.53.3 and needs to be recalibrated."
 	}
 	If (ini_version < 15304)
 		FileDelete, data\global\[stash-ninja] prices.ini
@@ -493,20 +512,22 @@ Init_general()
 	settings.general.dev := !Blank(check := ini.settings["dev"]) ? check : 0
 	settings.general.dev_env := settings.general.dev * (!Blank(check := ini.settings["dev env"]) ? check : 0)
 	settings.general.warning_ultrawide := !Blank(check := ini.versions["ultrawide warning"]) ? check : 0
-	settings.general.ClientFiller := !settings.general.FillerAvailable ? 0 : !Blank(check := ini.settings["client background filler"]) ? check : 0
-	settings.general.ClientFillerTaskbar := !Blank(check := ini.settings["cover taskbar"]) ? check : 0
+	settings.general.ClientFiller := (!settings.general.FillerAvailable ? 0 : (!Blank(check := ini.settings["client background filler"]) ? check : 0))
+	settings.general.ClientFillerTaskbar := (!Blank(check := ini.settings["cover taskbar"]) ? check : 0)
+	settings.general.ClientFillerSplit := (!settings.general.ClientFillerTaskbar ? 0 : (!Blank(check := ini.settings["split-screen mode"]) ? check : 0))
 	settings.general.input_method := !Blank(check := ini.settings["input method"]) ? check : 1
 
 	settings.general.fSize := !Blank(check := ini.settings["font-size"]) ? check : LLK_FontDefault()
 	If (settings.general.fSize < 6)
 		settings.general.fSize := 6
 	LLK_FontDimensions(settings.general.fSize, font_height, font_width), settings.general.fHeight := font_height, settings.general.fWidth := font_width
-	LLK_FontDimensions(settings.general.fSize - 4, font_height, font_width), settings.general.fHeight2 := font_height, settings.general.fWidth2 := font_width
+	LLK_FontDimensions((settings.general.fSize2 := settings.general.fSize - 4), font_height, font_width), settings.general.fHeight2 := font_height, settings.general.fWidth2 := font_width
 
 	settings.general.sMenu := !Blank(check := ini.settings["menu-widget size"]) ? check : Max(settings.general.fSize, 10)
 	LLK_FontDimensions(settings.general.sMenu, height, width), settings.general.wMenu := width
 	settings.general.animations := !Blank(check := ini.settings.animations) ? check : 1
 	settings.features.browser := !Blank(check := ini.settings["enable browser features"]) ? check : 1
+	settings.features.runeshaping := !Blank(check := ini.features["enable rune-ninja"]) ? check : 0
 	settings.features.sanctum := !Blank(check := ini.features["enable sanctum planner"]) ? check : 0
 	settings.features.anoints := !Blank(check := ini.features["enable enchant finder"]) ? check : 0
 	settings.features.lootfilter := !Blank(check := ini.features["enable filterspoon"]) ? check : 0
@@ -526,9 +547,15 @@ Init_general()
 	settings.updater := {"update_check": LLK_IniRead("ini\config.ini", "settings", "update auto-check", 0)}
 
 	vars.pics := {"global": {"close": LLK_ImageCache("img\GUI\close.png"), "help": LLK_ImageCache("img\GUI\help.png"), "home":LLK_ImageCache("img\GUI\home.png"), "reload": LLK_ImageCache("img\GUI\restart.png"), "revert": LLK_ImageCache("img\GUI\revert.png"), "black_trans": LLK_ImageCache("img\GUI\square_black_trans.png"), "collapse": LLK_ImageCache("img\GUI\toggle_collapse.png"), "expand": LLK_ImageCache("img\GUI\toggle_expand.png")}
-	, "anoints": {}, "betrayal_checks": {}, "cheatsheets_checks": {}, "iteminfo": {}, "legion": {}, "leveltracker": {}, "mapinfo": {}, "maptracker": {}, "maptracker_checks": {}, "radial": {"macros": {}, "menu": {}}, "screen_checks": {}, "search_strings": {}, "settings": {}, "stashninja": {}, "statlas": {}, "zone_layouts": {}}
+	, "anoints": {}, "betrayal_checks": {}, "cheatsheets_checks": {}, "iteminfo": {}, "legion": {}, "leveltracker": {}, "mapinfo": {}, "maptracker": {}, "maptracker_checks": {}, "radial": {"macros": {}, "menu": {}}, "runeshaping": {}, "screen_checks": {}, "search_strings": {}, "settings_lootfilter": {}, "settings": {}, "stashninja": {}, "statlas": {}, "zone_layouts": {}}
 
-	vars.leagues := json.Load(LLK_FileRead("data\global\leagues" vars.poe_version ".json", 1)), settings.general.league0 := StrSplit("sc|trade" (vars.poe_version ? "" : "|normal") "|standard", "|")
+	If FileExist("data\global\leagues" vars.poe_version ".json")
+		vars.leagues := json.Load(LLK_FileRead("data\global\leagues" vars.poe_version ".json", 1))
+	Else If !vars.poe_version
+		vars.leagues := {"sc":{"ssf":{"normal":{"standard":"Solo Self-Found"},"ruthless":{"standard":"SSF Ruthless"}},"trade":{"normal":{"standard":"Standard"},"ruthless":{"standard":"Ruthless"}}},"hc":{"ssf":{"normal":{"standard":"Hardcore SSF"},"ruthless":{"standard":"Hardcore SSF Ruthless"}},"trade":{"normal":{"standard":"Hardcore"},"ruthless":{"standard":"Hardcore Ruthless"}}}}
+	Else vars.leagues := {"sc":{"ssf":{"standard":"Solo Self-Found"},"trade":{"standard":"Standard"}},"hc":{"ssf":{"standard":"Hardcore SSF"},"trade":{"standard":"Hardcore"}}}
+
+	settings.general.league0 := StrSplit("sc|trade" (vars.poe_version ? "" : "|normal") "|standard", "|")
 	settings.general.league := league := !Blank(check := ini.settings.league) ? StrSplit(check, "|", " ", 4) : settings.general.league0.Clone()
 	If !vars.poe_version && !vars.leagues[league.1][league.2][league.3][league.4] || vars.poe_version && !vars.leagues[league.1][league.2][league.3]
 		settings.general.league := settings.general.league0.Clone()
@@ -641,9 +668,13 @@ LLK_FileCheck() ;delete old files (or ones that have been moved elsewhere)
 		If FileExist("img\GUI\leveling tracker\hints\" val ".jpg")
 			FileDelete, % "img\GUI\leveling tracker\hints\" val ".jpg"
 
-	For index, val in ["the_wall_with_notes", "a_large_spiral", "form_a_triangle", "but_you_have_to_loop_around", "altar-locked_room_with_stairs", "the_plaza_and_the", "follow_the_road_straight", "diamond-shaped", "follow_road_straight", "the_wall_with_paper_talismans", "locked_room_with_stairs", "the_plaza_and", "check_the_surroundings"]
+	For index, val in ["the_wall_with_notes", "a_large_spiral", "form_a_triangle", "but_you_have_to_loop_around", "altar-locked_room_with_stairs", "the_plaza_and_the", "follow_the_road_straight", "diamond-shaped", "follow_road_straight", "the_wall_with_paper_talismans", "locked_room_with_stairs", "the_plaza_and", "check_the_surroundings", "follow_this_edge", "check_surroundings", "crescent-shaped", "diamond-shape", "paper_talismans", "pillar_structures", "the_wall_with_paper_talismans - Copy", "tower_structures", "waterway_edge", "swirls_that_point_to_missing_ones"]
 		If FileExist("img\GUI\leveling tracker\hints 2\" val ".jpg")
 			FileDelete, % "img\GUI\leveling tracker\hints 2\" val ".jpg"
+
+	For index, val in ["megalith bosses", "morwyn"]
+		If FileExist("img\GUI\statlas\" val ".jpg")
+			FileDelete, % "img\GUI\statlas\" val ".jpg"
 
 	For index, val in ["necropolis.ahk"]
 		If FileExist("modules\" val)
@@ -678,29 +709,29 @@ Loop()
 		If !vars.hwnd.poe_client
 			If (vars.poe_version != CheckClient())
 			{
-				MsgBox, The wrong game-client is running. Start the correct game, then close this message.
-				Return
+				MsgBox, 4, Exile UI, % "You have switched to a different game-client, do you want the tool to switch/restart as well?`n(If not, launch the correct client and then click 'no')"
+				IfMsgBox Yes
+					LLK_Restart()
+				Else Return
 			}
 			Else vars.hwnd.poe_client := WinExist("ahk_class POEWindowClass")
 
 		If vars.client.closed
 		{
-			If (vars.client.fullscreen = "true")
-			{
-				WinWaitActive, ahk_group poe_window
-				Sleep, 4000
-			}
+			WinWaitActive, ahk_group poe_window
+			Sleep, 4000
 			Init_client(), Init_Lang(), Init_screenchecks()
 		}
 		vars.client.closed := 0
 
-		If settings.updater.update_check && !vars.update.1 && (A_TickCount >= vars.general.updatetick + 1200000)
+		If settings.updater.update_check && !vars.update.1 && (A_TickCount >= vars.general.updatetick + 1800000)
 			vars.general.updatetick := A_TickCount, UpdateCheck(1)
 
 		If vars.general.MultiThreading && !WinExist(vars.general.bThread)
 			LLK_Error("Secondary thread has crashed, the tool needs to be restarted`n`nIf this is a recurring issue, disable multi-threading in the <general> settings", 1)
 
-		If (vars.news.unread || vars.update.1) && (WinExist("ahk_id " vars.hwnd.radial.main) || WinExist("ahk_id " vars.hwnd.settings.main))
+		If (vars.news.unread || vars.update.1 || vars.actdecoder.updater.available) && (WinExist("ahk_id " vars.hwnd.radial.main) || WinExist("ahk_id " vars.hwnd.settings.main)
+			|| vars.actdecoder.tab && WinExist("ahk_id " vars.hwnd.actdecoder.main))
 		{
 			news_tick += 1
 			If (Blank(vars.radial.click_select) || vars.radial.click_select = "settings") && WinExist("ahk_id " vars.hwnd.radial.main)
@@ -708,20 +739,21 @@ Loop()
 			If WinExist("ahk_id " vars.hwnd.settings.main)
 			{
 				If vars.news.unread
-				{
-					GuiControl, % "+c" (Mod(news_tick, 2) ? "White" : "Lime"), % vars.hwnd.settings.news
-					GuiControl, % "movedraw", % vars.hwnd.settings.news
-				}
+					GuiControl, % "+Background" (Mod(news_tick, 2) ? "Black" : "Lime"), % vars.hwnd.settings.background_news
 				If vars.update.1
+					GuiControl, % "+Background" (Mod(news_tick, 2) ? "Black" : (vars.update.1 < 0 ? "Red" : "Lime")), % vars.hwnd.settings.background_updater
+				If vars.actdecoder.updater.available
 				{
-					GuiControl, % "+c" (Mod(news_tick, 2) ? "White" : (vars.update.1 < 0 ? "Red" : "Lime")), % vars.hwnd.settings.updater
-					GuiControl, % "movedraw", % vars.hwnd.settings.updater
+					GuiControl, % "+c" (Mod(news_tick, 2) ? "White" : "Lime"), % vars.hwnd.settings.actdecoder
+					GuiControl, % "movedraw", % vars.hwnd.settings.actdecoder
 				}
 			}
+			If vars.actdecoder.updater.available && vars.actdecoder.tab && WinExist("ahk_id " vars.hwnd.actdecoder.main)
+				GuiControl, % "+Background" (Mod(news_tick, 2) ? "Black" : "Lime"), % vars.hwnd.actdecoder.helppanel_bar
 		}
 	}
 
-	If !WinExist("ahk_group poe_window") && (A_TickCount >= vars.general.runcheck + settings.general.kill[2]* 60000) && settings.general.kill[1]
+	If !WinExist("ahk_group poe_window") && (A_TickCount >= vars.general.runcheck + settings.general.kill.2 * 60000) && settings.general.kill.1
 		ExitApp
 }
 
@@ -858,7 +890,8 @@ Loop_main()
 	If vars.client.stream && !vars.radial.wait && !vars.general.drag && !WinExist("LLK-UI: notepad reminder") && !WinExist("LLK-UI: alarm set") && !WinExist("ahk_id " vars.hwnd.betrayal_setup.main) && WinActive("ahk_group poe_ahk_window") && vars.general.wMouse && LLK_HasVal(vars.hwnd, vars.general.wMouse,,,, 1) && !WinActive("ahk_id " vars.general.wMouse)
 		WinActivate, % "ahk_id " vars.general.wMouse
 
-	If !vars.general.drag && (vars.general.wMouse != vars.hwnd.settings.main) && vars.hwnd.stash.main && !vars.stash.wait && !vars.stash.enter && (vars.stash.GUI || WinExist("ahk_id " vars.hwnd.stash.main)) && WinActive("ahk_group poe_ahk_window") && LLK_IsBetween(vars.general.xMouse, vars.client.x, vars.client.x + vars.stash.width) && LLK_IsBetween(vars.general.yMouse, vars.client.y, vars.client.y + vars.client.h)
+	offsets := settings.stash.offsets[settings.general.input_method]
+	If !vars.general.drag && (vars.general.wMouse != vars.hwnd.settings.main) && vars.hwnd.stash.main && !vars.stash.wait && !vars.stash.enter && (vars.stash.GUI || WinExist("ahk_id " vars.hwnd.stash.main)) && WinActive("ahk_group poe_ahk_window") && LLK_IsBetween(vars.general.xMouse, vars.client.x + offsets.1, vars.client.x + vars.stash.width + offsets.1) && LLK_IsBetween(vars.general.yMouse, vars.client.y + offsets.2, vars.client.y + vars.client.h + offsets.2)
 	{
 		tab := vars.stash.active
 		If !stashhover.exact || (vars.general.xMouse "," vars.general.yMouse != stashhover.exact)
@@ -872,8 +905,8 @@ Loop_main()
 				box := InStr(item, "tab_") ? vars.stash.buttons : vars.stash[tab].box
 				If !vars.poe_version
 					exception1 := LLK_PatternMatch(item, "", ["potent", "powerful", "prime"]) ? 1 : 0, exception2 := LLK_PatternMatch(item, "", ["powerful", "prime"]) ? 1 : 0
-				x1 := vars.client.x + val.coords.1, x2 := vars.client.x + val.coords.1 + (exception2 ? vars.client.h * (1/12) : box * (!vars.poe_version && InStr(item, "tab_") ? 4.5 : 1))
-				y1 := vars.client.y + val.coords.2, y2 := vars.client.y + val.coords.2 + (exception1 ? vars.client.h * (1/12) : box)
+				x1 := vars.client.x + val.coords.1 + offsets.1, x2 := vars.client.x + val.coords.1 + offsets.1 + (exception2 ? vars.client.h * (1/12) : box * (!vars.poe_version && InStr(item, "tab_") ? 4.5 : 1))
+				y1 := vars.client.y + val.coords.2 + offsets.2, y2 := vars.client.y + val.coords.2 + offsets.2 + (exception1 ? vars.client.h * (1/12) : box)
 				If LLK_IsBetween(vars.general.xMouse, x1, x2) && LLK_IsBetween(vars.general.yMouse, y1, y2)
 				{
 					stashhover := {"x1": x1, "x2": x2, "y1": y1, "y2": y2}
@@ -882,7 +915,7 @@ Loop_main()
 				}
 			}
 			If Blank(stashhover.x1) && vars.stash.hover
-					vars.stash.hover := "", Stash("refresh")
+				vars.stash.hover := "", Stash("refresh")
 			stashhover.exact := vars.general.xMouse "," vars.general.yMouse
 		}
 	}
@@ -1008,15 +1041,15 @@ Resolution_check()
 			You have to run the client with a custom resolution, which you can set up in the following window.
 			)
 		}
-		MsgBox, % text
+		MsgBox,, Exile UI, % text
 		vars.general.safe_mode := 1
-		settings_menu("general")
+		settings_menu("client")
 		sleep, 2000
 		Loop
 		{
 			If !WinExist("ahk_id " vars.hwnd.settings.main)
 			{
-				MsgBox, The script will now shut down.
+				MsgBox,, Exile UI, The script will now shut down.
 				ExitApp
 			}
 			Sleep, 100
@@ -1044,6 +1077,8 @@ Startup()
 
 	ini := IniBatchRead("ini" vars.poe_version "\config.ini", "settings")
 	settings.general := {"kill": [LLK_IniRead("ini\config.ini", "settings", "kill script", 1), LLK_IniRead("ini\config.ini", "settings", "kill-timeout", 1)]}
+	If !settings.general.kill.1
+		settings.general.kill.2 := 0
 	settings.general.dev := !Blank(check := ini.settings["dev"]) ? check : 0, settings.general.capslock := !Blank(check := ini.settings["enable capslock-toggling"]) ? check : 1
 	SetStoreCapsLockMode, % settings.general.capslock ;for people who have something bound to CapsLock
 	If !(vars.general.Gdip := Gdip_Startup(1))
@@ -1146,6 +1181,6 @@ StringReceive(wParam, string) ;based on example #4 on https://www.autohotkey.com
 
 	StringAddress := NumGet(string + 2*A_PtrSize), string := StrGet(StringAddress)
 	If InStr(string, "OCR ")
-		vars.statlas.text := LLK_StringCase(string)
+		vars.ocr_comms.text := LLK_StringCase(string)
 	Return true
 }

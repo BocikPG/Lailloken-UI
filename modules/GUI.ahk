@@ -14,17 +14,22 @@ Gui_ClientFiller(mode := "") ;creates a black full-screen GUI to fill blank spac
 
 	If Blank(mode)
 	{
-		Gui, ClientFiller: New, % "-Caption +ToolWindow +LastFound" (settings.general.ClientFillerTaskbar ? " +AlwaysOnTop" : "") " HWNDhwnd"
+		Gui, ClientFiller: New, % "-DPIScale -Caption +ToolWindow +LastFound" (settings.general.ClientFillerTaskbar ? " +AlwaysOnTop" : "") " HWNDhwnd"
 		Gui, ClientFiller: Color, Black
+		Gui, ClientFiller: Margin, 0, 0
 		WinSet, TransColor, Fuchsia
-		Gui, ClientFiller: Add, Progress, % "Disabled BackgroundFuchsia x" vars.client.x - vars.monitor.x " y" vars.client.y - vars.monitor.y " w" vars.client.w " h" vars.client.h, 0
+		Gui, ClientFiller: Add, Progress, % "Disabled BackgroundFuchsia x" (settings.general.ClientFillerSplit ? 0 : vars.client.x - vars.monitor.x) " y" vars.client.y - vars.monitor.y " w" (settings.general.ClientFillerSplit ? vars.monitor.w : vars.client.w) " h" vars.client.h, 0
+		If settings.general.ClientFillerSplit
+		{
+			Gui, ClientFiller: Add, Progress, % "Disabled BackgroundFuchsia x0 y0 w" (vars.client.x - vars.monitor.x) " h" vars.monitor.h
+			Gui, ClientFiller: Add, Progress, % "Disabled BackgroundFuchsia x" (vars.client.x - vars.monitor.x) + vars.client.w " y0 w" (vars.monitor.w - vars.client.w - (vars.client.x - vars.monitor.x)) " h" vars.monitor.h
+		}
 		vars.hwnd.ClientFiller := hwnd
 	}
 	Else If (mode = "show")
 	{
 		WinSet, AlwaysOnTop, On, % "ahk_id " vars.hwnd.poe_client
-		Gui, ClientFiller: Show, % "NA x10000 y10000" (settings.general.ClientFillerTaskbar ? " w" vars.monitor.w " h" vars.monitor.h : " Maximize")
-		Gui, ClientFiller: Show, % "NA x" vars.monitor.x " y" vars.monitor.y
+		Gui, ClientFiller: Show, % "NA x" vars.monitor.x " y" vars.monitor.y . (settings.general.ClientFillerTaskbar ? " w" vars.monitor.w " h" vars.monitor.h : " Maximize")
 		WinWait, % "ahk_id " vars.hwnd.ClientFiller
 		WinSet, AlwaysOnTop, Off, % "ahk_id " vars.hwnd.poe_client
 	}
@@ -69,7 +74,7 @@ Gui_CreateGraph(width, height, graph, color)
 	Return hbmBitmap
 }
 
-Gui_DropDownList(object, coord_array)
+Gui_DropDownList(object, coord_array, align := "", altsubmit := 0)
 {
 	local
 	global vars, settings, json
@@ -78,12 +83,12 @@ Gui_DropDownList(object, coord_array)
 	Gui, DDL: New, -Caption -DPIScale +LastFound +ToolWindow +AlwaysOnTop +Border +E0x02000000 +E0x00080000 HWNDhwnd_ddl, Exile UI: Drop-Down List
 	Gui, DDL: Color, % object.color
 	Gui, DDL: Font, % "s" object.fSize " cWhite", % vars.system.font
-	Gui, DDL: Margin, % (object.type = "minimap" ? settings.lootfilter.fWidth//2 : 0), % (object.type = "minimap" ? settings.lootfilter.fWidth//2 : 0)
+	Gui, DDL: Margin, % (object.type = "minimap" ? settings.lootfilter.fWidth//2 : -1), % (object.type = "minimap" ? settings.lootfilter.fWidth//2 : 0)
 
 	If !object.list.Count()
 		Return
 
-	LLK_PanelDimensions(object.list, object.fSize, wList, hList), controls := {}, wList := Max(wList, coord_array.3 - 2)
+	LLK_PanelDimensions(object.list, object.fSize, wList, hList), controls := {}, HWNDs := [], wList := Max(wList, coord_array.3), hList := Max(hList, coord_array.4 - 2)
 	For index, val in object.list
 	{
 		If (type = "minimap")
@@ -92,8 +97,8 @@ Gui_DropDownList(object, coord_array)
 				vars.pics.lootfilter[val] := LLK_ImageCache("img\GUI\lootfilter\" val ".png",, settings.lootfilter.fHeight2 - 2)
 			Gui, DDL: Add, Pic, % (A_Index = 1 ? "Section" : "ys") " HWNDhwnd", % "HBitmap:*" vars.pics.lootfilter[val]
 		}
-		Else Gui, DDL: Add, Text, % "Section" (A_Index != 1 ? " xs" : "") " w" wList " HWNDhwnd" (val = object.current ? " cLime" : ""), % " " val
-		controls[hwnd] := val
+		Else Gui, DDL: Add, Text, % "Section" (A_Index != 1 ? " xs" : " x-1 y-1") " w" wList " h" hList " 0x200 HWNDhwnd" (val = object.current ? " cLime" : "") . (align ? " " align : ""), % (!align ? " " : "") . val . (align = "right" ? " " : "")
+		controls[hwnd] := val, HWNDs.Push(hwnd)
 	}
 
 	Gui, DDL: Show, % "NA x10000 y10000"
@@ -103,12 +108,29 @@ Gui_DropDownList(object, coord_array)
 	Gui, DDL: Show, % "x" xPos " y" yPos
 	WinWaitActive, ahk_id %hwnd_ddl%
 
-	While Blank(input) && (vars.general.wMouse = hwnd_ddl) && WinActive("ahk_id " hwnd_ddl)
+	If (safe := vars.general.safe_mode)
 	{
-		KeyWait, LButton, D T0.25
-		If vars.general.cMouse && !ErrorLevel
-			input := controls[vars.general.cMouse]
+		MouseGetPos, xPos, yPos, win_hover, control_hover, 2
+		wMouse := Blank(win_hover) ? 0 : win_hover, cMouse := Blank(control_hover) ? 0 : control_hover
 	}
+	While Blank(input) && ((safe ? wMouse : vars.general.wMouse) = hwnd_ddl) && WinActive("ahk_id " hwnd_ddl)
+	{
+		If safe
+		{
+			MouseGetPos, xPos, yPos, win_hover, control_hover, 2
+			wMouse := Blank(win_hover) ? 0 : win_hover, cMouse := Blank(control_hover) ? 0 : control_hover
+		}
+		KeyWait, LButton, D T0.25
+		If (safe ? cMouse : vars.general.cMouse) && !ErrorLevel
+			input := controls[safe ? cMouse : vars.general.cMouse]
+	}
+	If !Blank(input) && (object.cHWND)
+	{
+		GuiControl, Text, % object.cHWND, % (!align ? " " : "") . input . (align = "right" ? " " : "")
+		GuiControl, movedraw, % object.cHWND
+	}
+	If altsubmit
+		input := [input, LLK_HasVal(HWNDs, (safe ? cMouse : vars.general.cMouse))]
 	KeyWait, LButton
 	Gui, DDL: Destroy
 	Return input
@@ -161,7 +183,7 @@ Gui_HelpToolTip(HWND_key)
 		database := vars.leveltracker_gempickups.tooltips, gempickups := 1
 	Else database := (donation ? vars.settings.donations : (!IsObject(vars.help[check][control]) ? vars.help2 : vars.help))
 
-	tooltip_width := (check = "settings") ? vars.settings.w - vars.settings.wSelection : (wWin - 2) * (check = "cheatsheets" && vars.cheatsheet_menu.type = "advanced" ? 0.5 : InStr("leveltrackereditor, sanctum", check) ? 0.75 : 1)
+	tooltip_width := (check = "settings") ? settings.general.fWidth * 34 : (wWin - 2) * (check = "cheatsheets" && vars.cheatsheet_menu.type = "advanced" ? 0.5 : InStr("leveltrackereditor, sanctum", check) ? 0.75 : 1)
 	tooltip_width := (check = "actdecoder") ? 600 * Max(settings.actdecoder.sLayouts, 1) : (RegExMatch(check, "i)anoints|gemcutting") ? settings.general.fWidth * 50 : tooltip_width)
 	tooltip_width := (check = "cheatsheet" ? settings.general.fWidth * 40 : tooltip_width)
 
@@ -179,7 +201,7 @@ Gui_HelpToolTip(HWND_key)
 
 	toggle := !toggle, GUI_name := "help_tooltip" toggle
 	Gui, %GUI_name%: New, -Caption -DPIScale +LastFound +AlwaysOnTop +ToolWindow +Border +E0x20 +E0x02000000 +E0x00080000 HWNDtooltip
-	Gui, %GUI_name%: Color, 202020
+	Gui, %GUI_name%: Color, 101030
 	Gui, %GUI_name%: Margin, 0, 0
 	Gui, %GUI_name%: Font, % "s" settings.general.fSize - 2 " cWhite", % vars.system.font
 	hwnd_old := vars.hwnd.help_tooltips.main, vars.hwnd.help_tooltips.main := tooltip, vars.general.active_tooltip := vars.general.cMouse
@@ -190,9 +212,16 @@ Gui_HelpToolTip(HWND_key)
 
 	If (control = "leveltracker profile select")
 	{
-		profile := LLK_ControlGet(vars.general.cMouse), profile := (profile = 1 ? "" : profile), ini := IniBatchRead("ini" vars.poe_version "\leveling guide" profile ".ini", "info")
+		profile := LLK_HasVal(vars.hwnd.settings, vars.general.cMouse), profile := SubStr(profile, 8, 1)
+		profile := (IsNumber(profile) ? profile : ""), ini := IniBatchRead("ini" vars.poe_version "\leveling guide" profile ".ini", "info")
 		If (name := ini.info.name) || (character := ini.info.character)
 			target_array.InsertAt(1, Trim(ini.info.character ":`n" name, "`n:") "(/underline)(/bold)")
+	}
+	Else If (control = "iteminfo profiles")
+	{
+		profile := LLK_HasVal(vars.hwnd.help_tooltips, vars.general.cMouse), profile := SubStr(profile, InStr(profile, "|")), profile := (InStr(profile, "|") ? StrLen(profile) : 0)
+		If !Blank(profile_name := settings.iteminfo["profile_name" profile])
+			target_array.InsertAt(1, Lang_Trans("global_name") " " profile_name "(/bold)(/underline)")
 	}
 
 	If InStr(control, "updater changelog")
@@ -274,14 +303,19 @@ Gui_HelpToolTip(HWND_key)
 	}
 	Else For index, text in target_array
 	{
+		If IsObject(text)
+			text := (vars.poe_version ? text.2 : text.1)
+		If !text
+			Continue
 		font := InStr(text, "(/bold)") ? "bold" : "", font .= InStr(text, "(/underline)") ? (font ? " " : "") "underline" : "", font := !font ? "norm" : font, text := StrReplace(text, "&", "&&")
 		color := (InStr(text, "(/highlight)") ? "FF8000" : "White")
 		For index0, remove in ["underline", "bold", "highlight"]
 			text := StrReplace(text, "(/" remove ")")
 		Gui, %GUI_name%: Font, % font
-		Gui, %GUI_name%: Add, Text, % "x0 y-1000 Hidden w"tooltip_width - settings.general.fWidth, % LLK_StringCase(text)
-		Gui, %GUI_name%: Add, Text, % (A_Index = 1 ? "Section x0 y0" : "Section xs") " Border BackgroundTrans hp+"settings.general.fWidth " w"tooltip_width, % ""
-		Gui, %GUI_name%: Add, Text, % (InStr(control, "recentchanges") ? "" : "Center ") "xp+"settings.general.fWidth/2 " yp+"settings.general.fWidth/2 " w"tooltip_width - settings.general.fWidth . (vars.lab.room.2 && InStr(text, vars.lab.room.2) ? " cLime" : " c" color), % LLK_StringCase(text)
+		settings_selection := (check = "settings" && RegexMatch(control, "i)^selection\s") ? 1 : 0)
+		Gui, %GUI_name%: Add, Text, % "x0 y-1000 Hidden" (settings_selection ? "" : " w"tooltip_width - settings.general.fWidth), % LLK_StringCase(text)
+		Gui, %GUI_name%: Add, Text, % (A_Index = 1 ? "Section x0 y0" : "Section xs") " Border BackgroundTrans hp+"settings.general.fWidth (settings_selection ? " wp+" settings.general.fWidth : " w"tooltip_width), % ""
+		Gui, %GUI_name%: Add, Text, % (InStr(control, "recentchanges") ? "" : "Center ") "xp+"settings.general.fWidth/2 " yp+"settings.general.fWidth/2 . (settings_selection ? "" : " w"tooltip_width - settings.general.fWidth) . (vars.lab.room.2 && InStr(text, vars.lab.room.2) ? " cLime" : " c" color), % LLK_StringCase(text)
 	}
 
 	Gui, %GUI_name%: Show, NA AutoSize x10000 y10000
@@ -305,6 +339,11 @@ Gui_HelpToolTip(HWND_key)
 		xPos := xWin + wWin/2 - tooltip_width/2
 	Else If (check = "actdecoder")
 		xPos := (vars.general.xMouse + tooltip_width >= vars.monitor.x + vars.monitor.w ? vars.monitor.x + vars.monitor.w - tooltip_width : vars.general.xMouse)
+	Else If settings_selection
+		xPos := xControl, yPos := y + h - 1
+	Else If (check = "settings")
+		xPos := (vars.settings.x + vars.settings.w + width >= vars.monitor.x + vars.monitor.w ? vars.settings.x - width : vars.settings.x + vars.settings.w)
+		, yPos := (RegexMatch(control, "i)updater.changelog|recentchanges") ? vars.settings.y : Max(vars.settings.y, y + h//2 - height//2))
 
 	If (check = "alarm" && yPos < vars.monitor.y)
 		yPos := yWin + hWin - 1
@@ -761,11 +800,12 @@ LLK_Overlay(guiHWND, mode := "show", NA := 1, gui_name0 := "")
 	If !InStr("showhide", guiHWND) && (Blank(gui_name) || Blank(gui_index))
 		Return
 
+	DetectHiddenWindows, On
 	If (guiHWND = "hide")
 	{
 		For index, val in vars.GUI
 		{
-			If (val.hwnd = vars.hwnd.settings.main) && (vars.settings.active = "betrayal-info") || !WinExist("ahk_id " val.hwnd) || InStr(vars.hwnd.cheatsheet_menu.main "," vars.hwnd.searchstrings_menu.main "," vars.hwnd.leveltracker_screencap.main "," vars.hwnd.notepad.main "," vars.hwnd.leveltracker_editor.main "," vars.hwnd.leveltracker_gempickups.main, val.hwnd)
+			If (val.hwnd = vars.hwnd.settings.main) && settings.features.betrayal && (vars.settings.active = "betrayal-info") || !WinExist("ahk_id " val.hwnd) || InStr(vars.hwnd.cheatsheet_menu.main "," vars.hwnd.searchstrings_menu.main "," vars.hwnd.leveltracker_screencap.main "," vars.hwnd.notepad.main "," vars.hwnd.leveltracker_editor.main "," vars.hwnd.leveltracker_gempickups.main, val.hwnd)
 				Continue
 			Gui, % val.name ": Hide"
 		}
@@ -774,20 +814,14 @@ LLK_Overlay(guiHWND, mode := "show", NA := 1, gui_name0 := "")
 	{
 		For index, val in vars.GUI
 		{
-			ControlGetPos, x,,,,, % "ahk_id " val.dummy
-			If !val.show || Blank(x)
+			If !val.show || !WinExist("ahk_id " val.hwnd)
 				Continue
 			Gui, % val.name ": Show", % (NA ? "NA" : "")
 		}
 	}
 	Else If (mode = "show") || (mode = "hide") && !Blank(gui_name0)
 	{
-		If !vars.GUI[gui_index].dummy
-		{
-			Gui, %gui_name%: Add, Text, Hidden x0 y0 HWNDhwnd, % "" ;add a dummy text-control to the GUI with which to check later on if it has been destroyed already (via ControlGetPos)
-			vars.GUI[gui_index].dummy := hwnd, vars.GUI[gui_index].show := (mode = "show") ? 1 : 0
-		}
-		Else vars.GUI[gui_index].show := 1
+		vars.GUI[gui_index].show := 1
 		Gui, %gui_name%: Show, % (mode = "show" ? (NA ? "NA" : "") : "Hide")
 	}
 	Else If (mode = "hide")
@@ -798,30 +832,27 @@ LLK_Overlay(guiHWND, mode := "show", NA := 1, gui_name0 := "")
 	}
 	Else If (mode = "destroy")
 	{
-		If vars.GUI[gui_index].dummy
-			ControlGetPos, x,,,,, % "ahk_id " vars.GUI[gui_index].dummy
-		If WinExist("ahk_id " guiHWND) || !Blank(x)
+		If WinExist("ahk_id " guiHWND)
 			Gui, %gui_name%: Destroy
 	}
 	Else If (mode = "check")
 	{
-		If vars.GUI[gui_index].dummy
-			ControlGetPos, x,,,,, % "ahk_id " vars.GUI[gui_index].dummy
-		Return x
+		DetectHiddenWindows, Off
+		Return (WinExist("ahk_id " guiHWND) ? 1 : 0)
 	}
 
 	For index, val in vars.GUI ;check for GUIs that have already been destroyed
 	{
-		ControlGetPos, x,,,,, % "ahk_id " val.dummy
-		If Blank(x)
+		If !WinExist("ahk_id " val.hwnd)
 			remove := index ";" remove
 	}
 	Loop, Parse, remove, `;
 		If IsNumber(A_LoopField)
 			vars.GUI.RemoveAt(A_LoopField)
+	DetectHiddenWindows, Off
 }
 
-LLK_PanelDimensions(array, fSize, ByRef width, ByRef height, align := "left", header_offset := 0, margins := 1, min_width := 0, use_key := 0)
+LLK_PanelDimensions(array, fSize, ByRef width, ByRef height, align := "left", header_offset := 0, margins := 1, min_width := 0, use_key := 0, font_style := "")
 {
 	local
 	global vars
@@ -829,7 +860,7 @@ LLK_PanelDimensions(array, fSize, ByRef width, ByRef height, align := "left", he
 	Gui, panel_dimensions: New, -DPIScale -Caption +LastFound +AlwaysOnTop +ToolWindow
 	Gui, panel_dimensions: Margin, 0, 0
 	Gui, panel_dimensions: Color, Black
-	Gui, panel_dimensions: Font, % "s"fSize + header_offset " cWhite", % vars.system.font
+	Gui, panel_dimensions: Font, % "s"fSize + header_offset " cWhite" (font_style ? " " font_style : ""), % vars.system.font
 	width := min_width ? 9999 : 0, height := 0, string := array.1
 
 	If min_width
@@ -851,7 +882,7 @@ LLK_PanelDimensions(array, fSize, ByRef width, ByRef height, align := "left", he
 		If use_key
 			val := index
 		font := InStr(val, "(/bold)") ? "bold" : "", font .= InStr(val, "(/underline)") ? (font ? " " : "") "underline" : "", font := !font ? "norm" : font
-		Gui, panel_dimensions: Font, % font
+		Gui, panel_dimensions: Font, % (font_style ? font_style : font)
 		val := StrReplace(StrReplace(StrReplace(val, "&&", "&"), "(/bold)"), "(/underline)"), val := StrReplace(val, "&", "&&")
 		Gui, panel_dimensions: Add, Text, % align " HWNDhwnd Border", % header_offset && (index = 1) ? " " val : margins ? " " StrReplace(val, "`n", " `n ") " " : val
 		Gui, panel_dimensions: Font, % "norm s"fSize
@@ -871,17 +902,23 @@ LLK_PanelDimensions(array, fSize, ByRef width, ByRef height, align := "left", he
 		height += 1
 }
 
-LLK_Progress(HWND_bar, key, HWND_control := "", key_wait := 1, reset_state := 0) ;HWND_bar = HWND of the progress bar, key = key that is held down to fill the progress bar, HWND_control = HWND of the button (to undo clipping)
+LLK_Progress(HWND_bar, key, HWND_control := "", key_wait := 1, reset_state := 0, color := "", reset_color := "", background := "", reset_background := "") ;HWND_bar = HWND of the progress bar, key = key that is held down to fill the progress bar, HWND_control = HWND of the button (to undo clipping)
 {
 	local
 
 	start := A_TickCount
+	If !Blank(color)
+		GuiControl, % "+c" color, %HWND_bar%
+	If !Blank(background)
+		GuiControl, % "+Background" background, %HWND_bar%
 	While GetKeyState(key, "P")
 	{
 		GuiControl,, %HWND_bar%, % A_TickCount - start
 		If (A_TickCount >= start + 600)
 		{
 			GuiControl,, %HWND_bar%, % reset_state
+			If !Blank(reset_color)
+				GuiControl, % "+c" reset_color, % HWND_bar
 			If HWND_control
 				GuiControl, movedraw, %HWND_control% ;redraw the button that was held down (otherwise the progress bar will remain on top of it)
 			If key_wait
@@ -891,6 +928,10 @@ LLK_Progress(HWND_bar, key, HWND_control := "", key_wait := 1, reset_state := 0)
 		Sleep 20
 	}
 	GuiControl,, %HWND_bar%, % reset_state
+	If !Blank(reset_color)
+		GuiControl, % "+c" reset_color, % HWND_bar
+	If !Blank(reset_background)
+		GuiControl, % "+Background" reset_background, % HWND_bar
 	If HWND_control
 		GuiControl, movedraw, %HWND_control%
 	Return 0

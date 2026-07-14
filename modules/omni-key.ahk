@@ -172,18 +172,29 @@ Omnikey2()
 	}
 	Else If settings.features.statlas && vars.imagesearch.atlas.check
 	{
-		If !WinExist("statlas debug") && Statlas()
+		If !WinExist("OCR debug") && Statlas()
 			Statlas_GUI()
-		Else If !WinExist("statlas debug")
-			LLK_ToolTip(Lang_Trans("global_fail"),,,,, "Red")
 
 		Omni_Release(), active := 1
-		Gui, statlas_comms: Destroy
+		Gui, ocr_comms: Destroy
 		LLK_Overlay(vars.hwnd.statlas.main, "destroy"), vars.hwnd.statlas.main := ""
 		If (settings.statlas.tier0 != settings.statlas.tier)
 			IniWrite, % (settings.statlas.tier0 := settings.statlas.tier), % "ini" vars.poe_version "\statlas.ini", settings, filter tier
 		If (settings.statlas.zoom0 != settings.statlas.zoom)
 			IniWrite, % (settings.statlas.zoom0 := settings.statlas.zoom), % "ini" vars.poe_version "\statlas.ini", settings, zoom
+	}
+	Else If settings.features.runeshaping && vars.imagesearch["runeshaping" (settings.general.input_method = 2 ? "2" : "")].check
+	{
+		If !WinExist("OCR debug")
+			Runeshape_OCR()
+
+		If settings.runeshaping.hold_ctrl
+			SendInput, {LControl down}
+		Omni_Release(), active := 1
+		If settings.runeshaping.hold_ctrl
+			SendInput, {LControl up}
+		LLK_Overlay(vars.hwnd.runeshaping.main, "destroy"), vars.hwnd.runeshaping := ""
+		Gui, ocr_comms: Destroy
 	}
 	Else If (InStr(vars.log.areaID, "_town") || LLK_StringCompare(vars.log.areaID, ["hideout"]) || (vars.log.areaID = "1_3_17_1") || vars.client.stream) && vars.leveltracker.toggle && (guide.gemList.Count() || guide.itemList.Count())
 	{
@@ -502,7 +513,7 @@ Omni_ContextMenuPick(cHWND)
 	Else If (check = "poelab")
 	{
 		Run, % "https://www.poelab.com/"
-		If settings.qol.lab && settings.features.browser
+		If settings.qol.lab
 		{
 			WinWaitActive, ahk_group snipping_tools,, 2
 			ToolTip_Mouse("lab", 1)

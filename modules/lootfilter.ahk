@@ -208,7 +208,7 @@ Lootfilter_Customize(cHWND := "")
 		;######################################################
 		Case InStr(check, "customize_mapicon"):
 		WinGetPos, xControl, yControl, wControl, hControl, % "ahk_id " cHWND
-		If Blank(input := Gui_DropDownList(vars.ddl.minimap, [xControl, yControl, wControl])) || RegexMatch(vars.lootfilter.last_style.minimapicon, "i)" input "$")
+		If Blank(input := Gui_DropDownList(vars.ddl.minimap, [xControl, yControl, wControl, hControl])) || RegexMatch(vars.lootfilter.last_style.minimapicon, "i)" input "$")
 			Return
 
 		If !target_index
@@ -236,7 +236,7 @@ Lootfilter_Customize(cHWND := "")
 		;######################################################
 		Case (check = "customize_sound"):
 		WinGetPos, xControl, yControl, wControl, hControl, % "ahk_id " cHWND
-		If Blank(input := Gui_DropDownList(vars.ddl[control], [xControl, yControl, wControl]))
+		If Blank(input := Gui_DropDownList(vars.ddl[control], [xControl, yControl, wControl, hControl]))
 			Return
 		sound := settings.lootfilter.sound_tags[input]
 
@@ -422,26 +422,32 @@ Lootfilter_Economy(type, input, stacks := 0)
 	If !IsNumber(input)
 		Return -1
 
-	Economy_Update(type, 10), modifications := []
-	If (vars.economy[type].timestamp.2 = "failed")
-		Return 0
+	batch := (type = "socketables" ? ["runes", "idols", "soulcores"] : [type])
+	For index, currency_type in batch
+	{
+		Economy_Update(currency_type, 10)
+		If (vars.economy[currency_type].timestamp.2 = "failed")
+			Return 0
+	}
+	modifications := []
 
 	If !style_tiers
 		style_tiers := (vars.poe_version ? {"currency": "c", "essences": "c", "socketables": "c"} : {"currency": "t4chaos", "divcards": "t4", "essences": "t3", "scarabs": "t4"})
 
 	stack_sizes := [{}], stack_style := []
-	For item, price in vars.economy[type]
-		If !(item := vars.economy.names[item]) || !LLK_HasVal(vars.lootfilter.active_filter.structure[types[type]], """" item """", 1,,, 1)
-			Continue
-		Else If (price < input)
-		{
-			stack_sizes.1[item] := 1, size := ((Round(input/price, 2) <= (input//price) * 1.11) ? Round(input//price) : Ceil(input / price))
-			If !stacks || (size > 6)
+	For index, currency_type in batch
+		For item, price in vars.economy[currency_type]
+			If !(item := vars.economy.names[item]) || !LLK_HasVal(vars.lootfilter.active_filter.structure[types[type]], """" item """", 1,,, 1)
 				Continue
-			If !IsObject(stack_sizes[size])
-				stack_sizes[size] := {}
-			stack_sizes[size][item] := 1
-		}
+			Else If (price < input)
+			{
+				stack_sizes.1[item] := 1, size := ((Round(input/price, 2) <= (input//price) * 1.11) ? Round(input//price) : Ceil(input / price))
+				If !stacks || (size > 6)
+					Continue
+				If !IsObject(stack_sizes[size])
+					stack_sizes[size] := {}
+				stack_sizes[size][item] := 1
+			}
 
 	If stacks
 	{
@@ -743,7 +749,7 @@ Lootfilter_Editor(cHWND := "")
 		{
 			LLK_Overlay(hwnd_old, "destroy"), vars.hwnd.lootfilter := ""
 			Gui, %GUI%: Destroy
-			MsgBox, 4,, % Lang_Trans("lootfilter_duplicatefiles") "`n" Lang_Trans("lootfilter_duplicatefiles", 2) "`n`n" Lang_Trans("lootfilter_duplicatefiles", 3)
+			MsgBox, 4, Exile UI, % Lang_Trans("lootfilter_duplicatefiles") "`n" Lang_Trans("lootfilter_duplicatefiles", 2) "`n`n" Lang_Trans("lootfilter_duplicatefiles", 3)
 			IfMsgBox, Yes
 			{
 				Run, % vars.system.config_folder "\OnlineFilters"
@@ -900,7 +906,7 @@ Lootfilter_Editor(cHWND := "")
 			Gui, %GUI%: Font, % "s" settings.lootfilter.fSize - 4
 			Gui, %GUI%: Add, Text, % "ys yp x+-1 hp Border BackgroundTrans w" settings.lootfilter.fWidth2 * 4
 			Gui, %GUI%: Add, Edit, % "xp yp hp HWNDhwnd cBlack Center Limit5 w" settings.lootfilter.fWidth2 * 4, % (oCurrent.modifications.Count() ? StrSplit(oCurrent.action, "|").2 : "")
-			vars.hwnd.lootfilter["cutoff_" val.1] := vars.hwnd.help_tooltips["lootfilter_economy cut-offs" vars.poe_version . handle_tooltip] := hwnd
+			vars.hwnd.lootfilter["cutoff_" val.1] := vars.hwnd.help_tooltips["lootfilter_economy cut-offs" handle_tooltip] := hwnd
 			Gui, %GUI%: Font, % "s" settings.lootfilter.fSize - 2
 			Gui, %GUI%: Add, Text, % "ys x+-1 yp Center Border gLootfilter_Customize HWNDhwnd w" wApplyUpdate, % Lang_Trans("global_" ((oCurrent.modifications.Count() && !oCurrent.modifications.toggle ? "update" : "apply")))
 			vars.hwnd.lootfilter["globalsetting_economy" index "|" val.1] := hwnd, handle_tooltip .= "|"
@@ -949,7 +955,7 @@ Lootfilter_Editor(cHWND := "")
 		;######################################################
 		available := vars.lootfilter.active_filter.structure.HasKey(!vars.poe_version ? "gems > generic" : "gems > uncut")
 		Gui, %GUI%: Add, Text, % style " Border Center HWNDhwnd w" wSettings . (available ? " gLootfilter_Editor" : " cFF8000"), % Lang_Trans("lootfilter_gems", vars.poe_version)
-		vars.hwnd.lootfilter["browsesetting_" (!vars.poe_version ? "gems > generic" : "gems > uncut")] := vars.hwnd.help_tooltips["lootfilter_global setting " (!available ? "unavailable||" : "gems" vars.poe_version)] := hwnd
+		vars.hwnd.lootfilter["browsesetting_" (!vars.poe_version ? "gems > generic" : "gems > uncut")] := vars.hwnd.help_tooltips["lootfilter_global setting " (!available ? "unavailable||" : "gems")] := hwnd
 
 		If IsObject(vars.lootfilter.modifications_pending[-11])
 			gems := vars.lootfilter.modifications_pending[-11]
@@ -961,7 +967,7 @@ Lootfilter_Editor(cHWND := "")
 			Gui, %GUI%: Add, Text, % "xs y+-1 Border BackgroundTrans w" wQualityLevel . (gems.modifications[val] ? " cLime" : ""), % " " Lang_Trans("lootfilter_min" val)
 			Gui, %GUI%: Add, Progress, % "Disabled xp yp wp hp Border BackgroundBlack c" background_color, 100
 			Gui, %GUI%: Add, Slider, % "yp x+-1 hp Border gLootfilter_Customize Center Range" (!vars.poe_version ? "0-2" (index = 1 ? 4 : 2) : (index < 3 ? "0-20" : "0-5")) " NoTicks ToolTip HWNDhwnd w" wSettings - wQualityLevel + 1, % value
-			vars.hwnd.lootfilter["globalsetting_gem|" val] := vars.hwnd.help_tooltips["lootfilter_global setting gems toggles" vars.poe_version . (index = 2 ? "|" : (index = 3 ? "||" : ""))] := hwnd
+			vars.hwnd.lootfilter["globalsetting_gem|" val] := vars.hwnd.help_tooltips["lootfilter_global setting gems toggles" (index = 2 ? "|" : (index = 3 ? "||" : ""))] := hwnd
 			cPos := LLK_ControlGetPos(hwnd), hMax := Max(hMax, cPos.yMax)
 		}
 		;######################################################
@@ -1200,7 +1206,7 @@ Lootfilter_Editor(cHWND := "")
 	If break
 	{
 		Gui, %GUI%: Font, % "bold s" settings.lootfilter.fSize - 4
-		Gui, %GUI%: Add, Text, % "Section y+" margin " xs x" margin " Border cRed Center BackgroundTrans HWNDhwnd w" wMax - margin - 1, % Lang_Trans("global_match", 3)
+		Gui, %GUI%: Add, Text, % "Section y+" margin " xs x" margin " Border cRed Center BackgroundTrans HWNDhwnd w" wMax - margin - 1, % Lang_Trans("lootfilter_matches")
 		Gui, %GUI%: Add, Progress, % "Disabled xp yp wp hp Border BackgroundRed cWhite", 100
 		Gui, %GUI%: Font, % "norm s" settings.lootfilter.fSize
 	}
@@ -1570,14 +1576,14 @@ Lootfilter_LoadStructure()
 			type := val.type, tier := val.tier, basetype := ""
 			If settings.general.dev && !(type || tier)
 			{
-				MsgBox, % "block with missing type/tier: " index
+				MsgBox,, Exile UI, % "block with missing type/tier: " index
 				Continue
 			}
 			If !IsObject(structure[type])
 				structure[type] := []
 			If settings.general.dev && LLK_HasKey(structure[type], tier,,,, 1)
 			{
-				MsgBox, % "duplicate tier in type """ type """"
+				MsgBox,, Exile UI, % "duplicate tier in type """ type """"
 				Continue
 			}
 			For iLine, oLine in val.lines
@@ -1858,7 +1864,7 @@ Lootfilter_Match(array, dev_check := 0)
 							Return
 						object.multimatches := 1
 					Case (key = "UnidentifiedItemTier"):
-						unidentifiedtier := 0, unidtier_item := InStr(search.clipboard, "---`nunidentified ("), unidtier_item := (!unidtier_item ? 0 : SubStr(search.clipboard, unidtier_item + 20, 1))
+						unidentifiedtier := 0, unidtier_item := InStr(search.clipboard, "---`nunidentified ("), unidtier_item := (!unidtier_item ? 0 : SubStr(search.clipboard, unidtier_item + 23, 1))
 						If (operator = ">=" && unidtier_item < value || operator = "<=" && unidtier_item > value || !operator && unidtier_item != value) && !dev_check
 							Return
 						unidentifiedtier := 1
@@ -1907,7 +1913,7 @@ Lootfilter_Match(array, dev_check := 0)
 					Case (key = "width"):
 					Case (key = "height"):
 					Case settings.general.dev:
-						MsgBox, % "unknown filter condition:`n!" (Clipboard := LLK_StringCase(key)) "!"
+						MsgBox,, Exile UI, % "unknown filter condition:`n!" (Clipboard := LLK_StringCase(key)) "!"
 					}
 				}
 

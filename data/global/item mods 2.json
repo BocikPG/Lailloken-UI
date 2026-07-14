@@ -5152,7 +5152,7 @@
         "name": "of amanamu",
         "text": [
           [
-            "Hits with Shield Skills which Heavy Stun enemies break fully Break Armour",
+            "Shield Skills fully Break Armour when they Heavy Stun targets",
             [
               0
             ]
@@ -5320,6 +5320,27 @@
         ]
       }
     ],
+    "AbyssModStaffAmanamuPrefixDamageAsChaos": [
+      {
+        "level": 65,
+        "name": "amanamu's",
+        "text": [
+          [
+            "Gain .*% of Damage as Extra Chaos Damage",
+            [
+              40,
+              50
+            ]
+          ]
+        ],
+        "weights": [
+          [
+            "staff",
+            1
+          ]
+        ]
+      }
+    ],
     "AbyssModStaffAmanamuPrefixFlatSpirit": [
       {
         "level": 65,
@@ -5391,8 +5412,8 @@
           [
             ".*% to Block chance",
             [
-              12,
-              16
+              20,
+              25
             ]
           ]
         ],
@@ -5504,6 +5525,27 @@
         "weights": [
           [
             "wand",
+            1
+          ]
+        ]
+      }
+    ],
+    "AbyssModStaffKurgalSuffixPuppetMasterStacks": [
+      {
+        "level": 65,
+        "name": "of kurgal",
+        "text": [
+          [
+            ".* maximum stacks of Puppet Master",
+            [
+              3,
+              4
+            ]
+          ]
+        ],
+        "weights": [
+          [
+            "staff",
             1
           ]
         ]
@@ -6009,7 +6051,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6030,7 +6072,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6051,7 +6093,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6072,7 +6114,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6100,7 +6142,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6127,7 +6169,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6147,7 +6189,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6168,7 +6210,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6189,7 +6231,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6209,7 +6251,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6229,7 +6271,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6249,7 +6291,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6269,7 +6311,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6289,7 +6331,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6320,7 +6362,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6351,7 +6393,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6382,7 +6424,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6403,7 +6445,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6432,7 +6474,7 @@
             "shield_mod"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6458,7 +6500,7 @@
             "dual_wielding_mod"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6498,7 +6540,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6540,7 +6582,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6583,7 +6625,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6604,7 +6646,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6628,7 +6670,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6649,7 +6691,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6669,7 +6711,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6689,7 +6731,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6709,7 +6751,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6730,7 +6772,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6750,7 +6792,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6770,7 +6812,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -6790,7 +6832,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6824,7 +6866,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6858,7 +6900,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6883,7 +6925,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6908,7 +6950,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6933,7 +6975,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6957,7 +6999,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -6982,7 +7024,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7007,7 +7049,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7064,7 +7106,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7093,7 +7135,7 @@
             "not_dex"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7122,7 +7164,7 @@
             "not_dex"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7151,7 +7193,7 @@
             "not_dex"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7180,7 +7222,7 @@
             "not_str"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7209,7 +7251,7 @@
             "not_str"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7238,7 +7280,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7267,7 +7309,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7287,7 +7329,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7308,7 +7350,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7338,7 +7380,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7367,7 +7409,7 @@
             "not_dex"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7396,7 +7438,7 @@
             "not_dex"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7425,7 +7467,7 @@
             "not_dex"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7454,7 +7496,7 @@
             "not_str"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7483,7 +7525,7 @@
             "not_str"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7512,7 +7554,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7541,7 +7583,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7561,7 +7603,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7581,7 +7623,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7602,7 +7644,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7635,7 +7677,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7669,7 +7711,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7690,7 +7732,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7711,7 +7753,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7736,7 +7778,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7761,7 +7803,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7788,7 +7830,7 @@
             "two_handed_mod"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7818,7 +7860,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7849,7 +7891,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7879,7 +7921,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7909,7 +7951,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -7938,7 +7980,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7959,7 +8001,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -7980,7 +8022,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8004,7 +8046,7 @@
             "not_str"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -8031,7 +8073,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -8054,7 +8096,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8078,7 +8120,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8102,7 +8144,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8126,8 +8168,7 @@
             "not_int"
           ],
           [
-            "default",
-            1
+            "jewel"
           ]
         ]
       }
@@ -8154,7 +8195,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -8174,7 +8215,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8199,7 +8240,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8224,7 +8265,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8249,7 +8290,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8274,7 +8315,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8298,7 +8339,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8323,7 +8364,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8348,7 +8389,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8369,7 +8410,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8401,7 +8442,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -8422,7 +8463,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -8445,7 +8486,7 @@
             "not_dex"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -8880,7 +8921,7 @@
         "name": "of ravaging",
         "text": [
           [
-            "Supported Minions' Strikes have Melee Splash",
+            "Minions' Strikes have Melee Splash",
             [
               0
             ]
@@ -9549,7 +9590,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9570,7 +9611,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -9590,7 +9631,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9615,7 +9656,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9636,7 +9677,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -9659,7 +9700,7 @@
             "not_str"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9671,7 +9712,7 @@
         "name": "defensive",
         "text": [
           [
-            ".*% increased Global Defences",
+            ".*% increased Global Armour, Evasion and Energy Shield",
             [
               4,
               6
@@ -9680,7 +9721,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -9700,7 +9741,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -9723,7 +9764,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9751,7 +9792,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -9771,7 +9812,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -9791,7 +9832,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -9815,7 +9856,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9840,7 +9881,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9861,7 +9902,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9882,7 +9923,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9910,7 +9951,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -9933,7 +9974,7 @@
             "not_str"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9957,7 +9998,7 @@
             "not_str"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -9982,7 +10023,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10007,7 +10048,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10032,7 +10073,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10057,7 +10098,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10081,7 +10122,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10106,7 +10147,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10137,7 +10178,7 @@
             "not_str"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10168,7 +10209,7 @@
             "not_str"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10189,7 +10230,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10213,7 +10254,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10237,7 +10278,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10258,7 +10299,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10289,7 +10330,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10319,7 +10360,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10349,7 +10390,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10369,7 +10410,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10389,7 +10430,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10413,7 +10454,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10437,7 +10478,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10460,7 +10501,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10484,7 +10525,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10507,7 +10548,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10531,7 +10572,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10555,7 +10596,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10586,7 +10627,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10616,7 +10657,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10646,7 +10687,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10676,7 +10717,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10699,7 +10740,7 @@
             "not_dex"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10727,7 +10768,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10751,7 +10792,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10776,7 +10817,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10797,7 +10838,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10834,7 +10875,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10865,7 +10906,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10886,7 +10927,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10910,7 +10951,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -10934,7 +10975,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10959,7 +11000,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -10990,7 +11031,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11020,7 +11061,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11056,7 +11097,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11088,7 +11129,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11109,7 +11150,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11129,7 +11170,7 @@
         ],
         "weights": [
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11153,7 +11194,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11177,7 +11218,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11201,7 +11242,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11241,7 +11282,7 @@
             "not_str"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11281,7 +11322,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11321,7 +11362,7 @@
             "not_str"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11361,7 +11402,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11386,7 +11427,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11411,7 +11452,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11436,7 +11477,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11461,7 +11502,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11486,7 +11527,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11518,7 +11559,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11549,7 +11590,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11573,7 +11614,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11598,7 +11639,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11623,7 +11664,7 @@
             1
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11644,7 +11685,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11664,7 +11705,7 @@
         ],
         "weights": [
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11688,7 +11729,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11712,7 +11753,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11748,7 +11789,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11784,7 +11825,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11820,7 +11861,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11859,7 +11900,7 @@
             1
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11882,7 +11923,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11905,7 +11946,7 @@
             "not_int"
           ],
           [
-            "default"
+            "jewel"
           ]
         ]
       }
@@ -11941,7 +11982,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -11978,7 +12019,7 @@
             "not_int"
           ],
           [
-            "default",
+            "jewel",
             1
           ]
         ]
@@ -20660,6 +20701,33 @@
             [
               11,
               16
+            ]
+          ]
+        ],
+        "weights": [
+          [
+            "default"
+          ]
+        ]
+      }
+    ],
+    "AlloyCastSpeedDamageAsExtraColdHybridOneHand": [
+      {
+        "level": 65,
+        "name": "of the stars",
+        "text": [
+          [
+            ".*% increased Cast Speed",
+            [
+              26,
+              31
+            ]
+          ],
+          [
+            "Gain .*% of Elemental Damage as Extra Cold Damage",
+            [
+              7,
+              11
             ]
           ]
         ],
@@ -34248,7 +34316,7 @@
         "name": "of ravaging",
         "text": [
           [
-            "Supported Minions' Strikes have Melee Splash",
+            "Minions' Strikes have Melee Splash",
             [
               0
             ]
@@ -83085,7 +83153,7 @@
             ]
           ],
           [
-            ".*% increased Slowing Potency of Debuffs on You",
+            ".*% reduced Slowing Potency of Debuffs on You",
             [
               10,
               15
@@ -83114,7 +83182,7 @@
             ]
           ],
           [
-            ".*% increased Slowing Potency of Debuffs on You",
+            ".*% reduced Slowing Potency of Debuffs on You",
             [
               16,
               20
@@ -83143,7 +83211,7 @@
             ]
           ],
           [
-            ".*% increased Slowing Potency of Debuffs on You",
+            ".*% reduced Slowing Potency of Debuffs on You",
             [
               21,
               25

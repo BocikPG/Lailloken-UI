@@ -14,7 +14,7 @@
 	settings.iteminfo.trigger := !Blank(check := ini.settings["enable wisdom-scroll trigger"]) ? check : 0
 	;settings.iteminfo.ilvl := (settings.general.lang_client != "english") ? 0 : !Blank(check := ini.settings["enable item-levels"]) ? check : 0
 	settings.iteminfo.itembase := !Blank(check := ini.settings["enable base-info"]) ? check : (vars.poe_version ? 0 : 1)
-	settings.iteminfo.override := !Blank(check := ini.settings["enable blacklist-override"]) ? check : (vars.poe_version ? 1 : 0)
+	settings.iteminfo.override := !Blank(check := ini.settings["enable blacklist-override"]) ? check : 1
 	settings.iteminfo.compare := (settings.general.lang_client != "english") || vars.poe_version ? 0 : !Blank(check := ini.settings["enable gear-tracking"]) ? check : 0
 	settings.iteminfo.activation := !Blank(check := ini.settings.activation) ? check : "toggle"
 	;settings.iteminfo.bars_tier := !Blank(check := ini.settings["tier bars"]) ? check : 1
@@ -29,6 +29,7 @@
 	settings.iteminfo.rules.attacks := (settings.general.lang_client != "english") ? 0 : !Blank(check := ini.settings["attacks override"]) ? check : 0
 	settings.iteminfo.rules.hitgain := (settings.general.lang_client != "english") ? 0 : !Blank(check := ini.settings["lifemana gain override"]) ? check : 0
 	settings.iteminfo.rules.crit := (settings.general.lang_client != "english") ? 0 : !Blank(check := ini.settings["crit override"]) ? check : 0
+	settings.iteminfo.Delete("rules")
 
 	settings.iteminfo.fSize := !Blank(check := ini.settings["font-size"]) ? check : settings.general.fSize
 	LLK_FontDimensions(settings.iteminfo.fSize, height, width), settings.iteminfo.fWidth := width, settings.iteminfo.fHeight := height
@@ -38,6 +39,9 @@
 	settings.iteminfo.colors_tier := [], settings.iteminfo.colors_ilvl := [], settings.iteminfo.colors_marking := []
 	settings.iteminfo.dColors_ilvl := ["FFFFFF", "00FF00", "006600", "FFFF00", "FF8000", "FF3333", "990000", "FF00FF"]
 	settings.iteminfo.ilevels := ["80", "70", "60", "50", "40", "30", "20", "10"]
+
+	Loop 5
+		settings.iteminfo["profile_name" A_Index] := ini.settings["profile " A_Index " name"]
 
 	Loop 8 ;load custom colors
 	{
@@ -573,16 +577,16 @@ Iteminfo_Stats2()
 			}
 
 			If InStr(A_LoopField, Lang_Trans("items_phys_dmg"))
-				phys_dmg := SubStr(StrReplace(A_LoopField, " (augmented)"), InStr(A_LoopField, ":") + 2)
+				phys_dmg := SubStr(LLK_StringReplace(A_LoopField, [[" (augmented)", ""], [Lang_Trans("items_dmg_minmax"), "-"]]), InStr(A_LoopField, ":") + 2)
 			Else If InStr(A_LoopField, Lang_Trans("items_chaos_dmg"))
 			{
-				chaos_dmg := SubStr(StrReplace(A_LoopField, " (augmented)"), InStr(A_LoopField, ":") + 2)
+				chaos_dmg := SubStr(LLK_StringReplace(A_LoopField, [[" (augmented)", ""], [Lang_Trans("items_dmg_minmax"), "-"]]), InStr(A_LoopField, ":") + 2)
 				If InStr(chaos_dmg, "(")
 					chaos_dmg := SubStr(chaos_dmg, 1, InStr(chaos_dmg, "(") - 2)
 			}
 			Else If Lang_Match(A_LoopField, vars.lang.items_dmg)
 			{
-				ele_dmg := SubStr(StrReplace(A_LoopField, " (augmented)"), InStr(A_LoopField, ":") + 2)
+				ele_dmg := SubStr(LLK_StringReplace(A_LoopField, [[" (augmented)", ""], [Lang_Trans("items_dmg_minmax"), "-"]]), InStr(A_LoopField, ":") + 2)
 				Loop, Parse, ele_dmg, `,
 				{
 					If InStr(A_LoopField, "(")
@@ -942,7 +946,7 @@ Iteminfo_Mods2()
 			clip2 := ""
 		If clip2 && InStr(A_LoopField, "---")
 			Break
-		If (!InStr(A_LoopField, "{") || InStr(A_LoopField, Lang_Trans("items_implicit"))) || LLK_PatternMatch(A_LoopField, "", ["rune)", "implicit)", "---", "enchant)"])
+		If (!InStr(A_LoopField, "{") || InStr(A_LoopField, Lang_Trans("items_implicit")) || InStr(A_LoopField, Lang_Trans("items_implicit_corrupt"))) || LLK_PatternMatch(A_LoopField, "", ["rune)", "implicit)", "---", "enchant)"])
 			Continue
 		Loop, Parse, A_LoopField, `n, % " "
 		{
@@ -2066,10 +2070,9 @@ Iteminfo_ModgroupCheck(name, mode := 0) ;check the affix-name to determine if th
 
 	If !vars.poe_version
 		parse := "abyss,bestiary,delve,incursion,syndicate,shaper,elder,crusader,redeemer,hunter,warlord,essence,infamous"
-	Else parse := "abyss2,essence"
+	Else parse := "abyss,essence"
 
-	abyss := ["abyssal"]
-	abyss2 := ["veiled", "amanamu", "kurgal", "ulaman", "lightless"]
+	abyss := (vars.poe_version ? ["veiled", "amanamu", "kurgal", "ulaman", "lightless"] : ["abyssal"])
 	bestiary := ["saqawal", "farrul", "craiceann", "fenumus"]
 	delve := ["subterranean", "of the underground"]
 	incursion := ["Citaqualotl", "Guatelitzi", "Matatl", "Tacati", "Topotante", "Xopec"]

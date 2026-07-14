@@ -2,6 +2,7 @@
 {
 	If (var = "")
 		Return 1
+	Return 0
 }
 
 CheckClient()
@@ -37,7 +38,7 @@ DB_Load(database)
 		If !vars.poe_version
 			db.leveltracker := {"areas": Json.Load(LLK_FileRead("data\" (FileExist("data\" lang "\[leveltracker] areas.json") ? lang : "english") "\[leveltracker] areas.json"))
 			, "gems": Json.Load(LLK_FileRead("data\" (FileExist("data\" lang "\[leveltracker] gems.json") ? lang : "english") "\[leveltracker] gems.json"))
-			, "trees": {"supported": ["3_28"]}}
+			, "trees": {"supported": ["3_28", "3_28_alternate"]}}
 		Else
 			db.leveltracker := {"areaIDs": {}, "areas": json.load(LLK_FileRead("data\" (FileExist("data\" lang "\[leveltracker] areas 2.json") ? lang : "english") "\[leveltracker] areas 2.json"))
 			, "trees": {"supported": ["0_4", "0_5"]}, "gems": Json.Load(LLK_FileRead("data\" (FileExist("data\" lang2 "\[leveltracker] gems 2.json") ? lang2 : "english") "\[leveltracker] gems 2.json"))}
@@ -66,6 +67,7 @@ DB_Load(database)
 	}
 	Else If (database = "maps")
 		db.maps := Json.Load(LLK_FileRead("data\" (FileExist("data\" settings.general.lang_client "\maps" vars.poe_version ".json") ? settings.general.lang_client : "english") "\maps" vars.poe_version ".json",, "65001"))
+		, db.maps.Delete("_translation_notes")
 	Else If (database = "item_mods")
 		db.item_mods := Json.Load(LLK_FileRead("data\global\item mods" vars.poe_version ".json"))
 	Else If (database = "item_bases")
@@ -106,10 +108,10 @@ DB_Load(database)
 				If !IsObject(db.mapinfo.mods[section])
 					db.mapinfo.mods[section] := {}
 				If settings.general.dev && (key = "ID") && db.mapinfo.mods[section].ID
-					MsgBox, % "duplicate: " section
+					MsgBox,, Exile UI, % "duplicate: " section
 				db.mapinfo.mods[section][key] := StrReplace(val, "&", "&&")
 				If settings.general.dev && (key = "type") && (val != "expedition") && !LLK_HasVal(db.mapinfo["mod types"], val)
-					MsgBox, % "invalid mod-type for:`n" section
+					MsgBox,, Exile UI, % "invalid mod-type for:`n" section
 			}
 		}
 	}
@@ -276,7 +278,7 @@ LLK_CloneObject(object)
 
 LLK_Error(ErrorMessage, restart := 0)
 {
-	MsgBox, % ErrorMessage
+	MsgBox,, Exile UI, % ErrorMessage
 	If restart
 		Reload
 	ExitApp
@@ -286,7 +288,7 @@ LLK_FilePermissionError(issue, folder)
 {
 	local
 
-	MsgBox, % Lang_Trans("m_permission_error1", (issue = "create") ? 1 : 2) " " folder "`n`n" Lang_Trans("m_permission_error1", 3) "`n" Lang_Trans("m_permission_error1", 4) "`n`n" Lang_Trans("m_permission_error1", 5) "`n`n" Lang_Trans("m_permission_error1", 6)
+	MsgBox,, Exile UI, % Lang_Trans("m_permission_error1", (issue = "create") ? 1 : 2) " " folder "`n`n" Lang_Trans("m_permission_error1", 3) "`n" Lang_Trans("m_permission_error1", 4) "`n`n" Lang_Trans("m_permission_error1", 5) "`n`n" Lang_Trans("m_permission_error1", 6)
 }
 
 LLK_FileRead(file, keep_case := 0, encoding := "65001")
@@ -613,8 +615,8 @@ UpdateCheck(timer := 0) ;checks for updates: timer param refers to whether this 
 	If !FileExist("update\")
 		FileCreateDir, update\
 	update.1 := !FileExist("update\") ? -2 : update.1
-	FileDelete, update\update.* ;delete any leftover files
-	update.1 := FileExist("update\update.*") ? -1 : update.1 ;error code -1 = delete-permission
+	FileDelete, update\update* ;delete any leftover files
+	update.1 := FileExist("update\update*") ? -1 : update.1 ;error code -1 = delete-permission
 	Loop, Files, update\lailloken-ui-*, D
 		FileRemoveDir, % A_LoopFileLongPath, 1 ;delete any leftover folders
 	Loop, Files, update\exile-ui-*, D
@@ -642,7 +644,7 @@ UpdateCheck(timer := 0) ;checks for updates: timer param refers to whether this 
 	}
 
 	FileDelete, data\version_check.json
-	Try version_check := HTTPtoVar("https://raw.githubusercontent.com/Lailloken/Lailloken-UI/" (settings.general.dev_env ? "dev" : "main") "/data/versions.json")
+	Try version_check := HTTPtoVar("https://raw.githubusercontent.com/Lailloken/Exile-UI/" (settings.general.dev_env ? "dev" : "main") "/data/versions.json")
 	update.1 := !InStr(version_check, """_release""") ? -4 : update.1 ;error-code -4 = version-list download failed
 	If (update.1 = -4)
 	{
@@ -659,7 +661,7 @@ UpdateCheck(timer := 0) ;checks for updates: timer param refers to whether this 
 	vars.updater.skip := LLK_IniRead("ini\config.ini", "versions", "skip", 0)
 
 	If !settings.general.dev
-		Try changelog_check := HTTPtoVar("https://raw.githubusercontent.com/Lailloken/Lailloken-UI/" (settings.general.dev_env ? "dev" : "main") "/data/changelog.json")
+		Try changelog_check := HTTPtoVar("https://raw.githubusercontent.com/Lailloken/Exile-UI/" (settings.general.dev_env ? "dev" : "main") "/data/changelog.json")
 	Else changelog_check := LLK_FileRead("data\changelog.json")
 	changelog_check := changelog_check ? Trim(changelog_check, " `r`n`t") : ""
 
@@ -697,13 +699,18 @@ UpdateCheck(timer := 0) ;checks for updates: timer param refers to whether this 
 		UpdateDownload(hwnd)
 		branch := InStr(versions_live._release.2, "/main.zip") ? "main" : "beta"
 		vars.updater.target_version := [LLK_IniRead("ini\config.ini", "versions", "apply update")]
-		Loop, Parse, % vars.updater.target_version.1, % "."
-			vars.updater.target_version.2 .= (A_Index = 3) ? (A_LoopField < 10 ? "0" : "") A_LoopField : A_LoopField
+		If (vars.updater.target_version.1 = "dev" || vars.updater.target_version.1 = "hotfix")
+			vars.updater.target_version.2 := vars.updater.target_version.1
+		Else
+			Loop, Parse, % vars.updater.target_version.1, % "."
+				vars.updater.target_version.2 .= (A_Index = 3) ? (A_LoopField < 10 ? "0" : "") A_LoopField : A_LoopField
 
 		LLK_Log("starting update to " vars.updater.target_version.1)
 
 		If !FileExist("update\update_" vars.updater.target_version.2 ".zip")
-			UrlDownloadToFile, % "https://github.com/Lailloken/Lailloken-UI/archive/refs/tags/v" vars.updater.target_version.1 ".zip", % "update\update_" vars.updater.target_version.2 ".zip"
+			If (vars.updater.target_version.1 = "dev" || vars.updater.target_version.1 = "hotfix")
+				UrlDownloadToFile, % "https://github.com/Lailloken/Exile-UI/archive/refs/heads/" vars.updater.target_version.1 ".zip", % "update\update_" vars.updater.target_version.2 ".zip"
+			Else UrlDownloadToFile, % "https://github.com/Lailloken/Exile-UI/archive/refs/tags/v" vars.updater.target_version.1 ".zip", % "update\update_" vars.updater.target_version.2 ".zip"
 		If ErrorLevel || !FileExist("update\update_" vars.updater.target_version.2 ".zip")
 			vars.update := [-5, vars.updater.target_version.1] ;error-code -5 = download of zip-file failed
 		If (vars.update.1 >= 0)
@@ -792,4 +799,16 @@ UpdateParseVersion(string)
 	}
 	string .= InStr(string, "(hotfix") ? ")" : ""
 	Return string
+}
+
+URL(cHWND)
+{
+	local
+	global vars
+
+	KeyWait, LButton
+	URL := vars.URLs[cHWND]
+	If Blank(URL)
+		Return
+	Run, % URL
 }

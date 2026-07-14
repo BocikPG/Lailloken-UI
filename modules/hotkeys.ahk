@@ -109,6 +109,8 @@ Hotkeys_ESC()
 
 	If WinExist("LLK-UI: Clone-Frames Borders")
 		Cloneframes_SettingsRefresh(), vars.hwnd.cloneframe_borders.main := ""
+	Else If WinExist("OCR debug")
+		WinClose, OCR debug
 	Else If WinExist("Exile UI: Drop-Down List")
 		Gui, DDL: Hide
 	Else If WinExist("Exile UI: RGB-Picker")
@@ -283,6 +285,13 @@ Hotkeys_Tab()
 			Break
 		}
 
+	While settings.features.leveltracker && settings.leveltracker.fade && LLK_Overlay(vars.hwnd.leveltracker.main, "check") && GetKeyState(vars.hotkeys.tab, "P")
+		If (A_TickCount >= start + 200)
+		{
+			active .= " leveltrackerfade", vars.leveltracker.tabfade := 1, Leveltracker_Toggle("show")
+			Break
+		}
+
 	map := vars.mapinfo.active_map
 	While settings.features.mapinfo && settings.mapinfo.tabtoggle && map.name && GetKeyState(vars.hotkeys.tab, "P")
 	&& (LLK_HasVal(vars.mapinfo.categories, vars.log.areaname, 1) || LLK_StringCompare(vars.log.areaID, ["map"]) || LLK_StringCompare(vars.log.areaID, ["hideout"]) || InStr(vars.log.areaID, "heisthub") || InStr(map.english, "invitation") && LLK_PatternMatch(vars.log.areaID, "", ["MavenHub", "PrimordialBoss"]))
@@ -325,7 +334,7 @@ Hotkeys_Tab()
 			If IsNumber(StrReplace(timestamp, "|")) && (timestamp <= A_Now)
 				expired := "expired"
 		If !expired
-			LLK_Overlay(vars.hwnd.alarm.main, "destroy")
+			SetTimer, Alarm_Close, 100
 		Else Alarm("", "", "expired")
 	}
 	If InStr(active, "notepad")
@@ -362,6 +371,8 @@ Hotkeys_Tab()
 	}
 	If InStr(active, "leveltracker")
 		vars.leveltracker.overlays := 0
+	If InStr(active, "leveltrackerfade")
+		Leveltracker_Toggle("hide"), vars.leveltracker.tabfade := 0
 	If InStr(active, "mapinfo")
 		LLK_Overlay(vars.hwnd.mapinfo.main, "destroy"), vars.mapinfo.toggle := 0
 	If InStr(active, "maptracker")
@@ -371,7 +382,7 @@ Hotkeys_Tab()
 
 	If active && !settings.general.dev
 		WinActivate, ahk_group poe_window
-	Sleep 200
+	Sleep 100
 }
 
 ;pre-defined contexts for hotkey command

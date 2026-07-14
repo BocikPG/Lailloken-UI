@@ -82,7 +82,7 @@ Log_Backup()
 	WinWaitClose, % "ahk_id " vars.hwnd.poe_client,, 3
 	If WinExist("ahk_id " vars.hwnd.poe_client)
 	{
-		MsgBox, % "Backup failed:`nCannot close the game-client."
+		MsgBox,, Exile UI, % "Backup failed:`nCannot close the game-client."
 		Return
 	}
 	file := StrReplace(vars.log.file_location, "client.txt", "Client (old).txt")
@@ -99,7 +99,7 @@ Log_Backup()
 		If ErrorLevel
 		{
 			LLK_Overlay(vars.hwnd.tooltip1, "destroy")
-			MsgBox, % "Backup failed:`nCannot move the old file.`nThe tool will restart."
+			MsgBox,, Exile UI, % "Backup failed:`nCannot move the old file.`nThe tool will restart."
 			LLK_Restart()
 			Return
 		}
@@ -107,7 +107,7 @@ Log_Backup()
 		If !IsObject(dest_file)
 		{
 			LLK_Overlay(vars.hwnd.tooltip1, "destroy")
-			MsgBox, % "Backup failed:`nCannot create the new file.`n`nRestart the game to let it create the new file.`nYou'll have to waypoint-travel around a few times before relaunching the tool."
+			MsgBox,, Exile UI, % "Backup failed:`nCannot create the new file.`n`nRestart the game to let it create the new file.`nYou'll have to waypoint-travel around a few times before relaunching the tool."
 			ExitApp
 		}
 		append := source_file.Read(), append := SubStr(append, InStr(append, "`n") + 1) . (vars.log.character_last ? vars.log.character_last "`r`n" : "")
@@ -116,9 +116,9 @@ Log_Backup()
 		If !FileExist(vars.log.file_location) || !FileExist(file)
 		{
 			LLK_Overlay(vars.hwnd.tooltip1, "destroy")
-			MsgBox, % "Backup failed:`nSomething went wrong while copying the file. The game's log folder will open after closing this message."
+			MsgBox,, Exile UI, % "Backup failed:`nSomething went wrong while copying the file. The game's log folder will open after closing this message."
 			Run, % "explore " SubStr(vars.log.file_location, 1, InStr(vars.log.file_location, "\",, 0) - 1)
-			MsgBox, % "Trouble-shooting steps:`n- If ""Client (old).txt"" doesn't exist, nothing happened and the original log-file wasn't changed.`n`n- If only ""Client (old).txt"" exists, the old file was moved but a new one wasn't created. Launching the game will create a new one, but you have to waypoint-travel around a bit before relaunching the tool."
+			MsgBox,, Exile UI, % "Trouble-shooting steps:`n- If ""Client (old).txt"" doesn't exist, nothing happened and the original log-file wasn't changed.`n`n- If only ""Client (old).txt"" exists, the old file was moved but a new one wasn't created. Launching the game will create a new one, but you have to waypoint-travel around a bit before relaunching the tool."
 			ExitApp
 		}
 	}
@@ -129,7 +129,7 @@ Log_Backup()
 		If !IsObject(source_file) || !IsObject(dest_file)
 		{
 			LLK_Overlay(vars.hwnd.tooltip1, "destroy")
-			MsgBox, % "Backup failed:`nCannot access the current or backup file.`nThe tool will restart."
+			MsgBox,, Exile UI, % "Backup failed:`nCannot access the current or backup file.`nThe tool will restart."
 			LLK_Restart()
 		}
 		Loop
@@ -156,7 +156,7 @@ Log_Backup()
 		If FileExist(vars.log.file_location)
 		{
 			LLK_Overlay(vars.hwnd.tooltip1, "destroy")
-			MsgBox, % "Backup failed:`nCannot delete the ""Client.txt"" log-file.`n. You'll have to delete it manually (the folder will open once you close this message).`n`nAfter deleting, restart the game, waypoint-travel around a few times, then restart the tool."
+			MsgBox,, Exile UI, % "Backup failed:`nCannot delete the ""Client.txt"" log-file.`n. You'll have to delete it manually (the folder will open once you close this message).`n`nAfter deleting, restart the game, waypoint-travel around a few times, then restart the tool."
 			Run, % "explore " SubStr(vars.log.file_location, 1, InStr(vars.log.file_location, "\",, 0) - 1)
 			ExitApp
 		}
@@ -164,7 +164,7 @@ Log_Backup()
 		If !IsObject(source_file)
 		{
 			LLK_Overlay(vars.hwnd.tooltip1, "destroy")
-			MsgBox, % "Backup failed:`nCannot create the new file.`n`nRestart the game to let it create the new file.`nYou'll have to waypoint-travel around a few times before relaunching the tool."
+			MsgBox,, Exile UI, % "Backup failed:`nCannot create the new file.`n`nRestart the game to let it create the new file.`nYou'll have to waypoint-travel around a few times before relaunching the tool."
 			ExitApp
 		}
 
@@ -226,27 +226,23 @@ Log_Get(log_text, data)
 	static unique_maps := {"merchant": "seer", "vault": "vaults"}
 
 	If (data = "areaname")
-		If !LLK_StringCompare(log_text, ["map", "breach", "ritual"])
+		If !LLK_StringCompare(log_text, ["map", "breach", "ritual", "expedition"])
 			%data% := log_text
 		Else
 		{
-			If LLK_StringCompare(log_text, ["breach"])
+			If InStr(log_text, "expedition")
 			{
-				If settings.maptracker.rename
-					Return Lang_Trans("maps_boss") ": " Lang_Trans("maps_xesht")
-				Else Return Lang_Trans("maps_xesht", 2) " (" Lang_Trans("maps_boss") ")"
-			}
-			Else If LLK_StringCompare(log_text, ["ritual"])
-			{
-				If settings.maptracker.rename
-					Return Lang_Trans("maps_boss") ": " Lang_Trans("maps_ritualboss")
-				Else Return Lang_Trans("maps_ritualboss", 2) " (" Lang_Trans("maps_boss") ")"
-			}
-			Else If InStr(log_text, "uberboss_monolith")
-			{
-				If settings.maptracker.rename
-					Return Lang_Trans("maps_boss") ": " Lang_Trans("maps_arbiter")
-				Else Return Lang_Trans("maps_arbiter", 2) " (" Lang_Trans("maps_boss") ")"
+				If !IsObject(db.maps)
+					DB_Load("maps")
+				If (map_name := db.maps.maps[log_text].name)
+					%data% := map_name, boss := db.maps.maps[log_text].boss
+				Else %data% := SubStr(log_text, InStr(log_text, "_") + 1)
+
+				If boss && settings.maptracker.rename
+					Return Lang_Trans("maps_boss") . Lang_Trans("global_colon") " " Lang_Trans("maps_" boss)
+				Else If boss
+					Return LLK_StringCase(%data%) " (" Lang_Trans("maps_boss") ")"
+				Else Return LLK_StringCase(%data%)
 			}
 			Else If RegExMatch(log_text, "Hideout.*_Claimable")
 			{
@@ -257,16 +253,17 @@ Log_Get(log_text, data)
 			If !IsObject(db.maps)
 				DB_Load("maps")
 
-			%data% := StrReplace(SubStr(log_text, 4), "_noboss"), map_name := db.maps.maps[%data%].name
-			If InStr(%data%, "uberboss_")
-				%data% := (settings.maptracker.rename ? Lang_Trans("maps_boss") ": " : "") . (map_name ? map_name : StrReplace(%data%, "uberboss_")) . (settings.maptracker.rename ? "" : " (" Lang_Trans("maps_boss") ")")
+			%data% := (RegexMatch(log_text, "i)^map") ? StrReplace(SubStr(log_text, 4), "_noboss") : log_text), map_name := db.maps.maps[%data%].name, boss := db.maps.maps[%data%].boss, boss := Lang_Trans("maps_" boss)
+			rename := settings.maptracker.rename
+			If InStr(%data%, "uberboss_") || RegexMatch(%data%, "i)ritualleagueboss|breachdomain")
+				%data% := (rename ? Lang_Trans("maps_boss") . Lang_Trans("global_colon") " " : "") . (boss && rename ? boss : (map_name ? map_name : StrReplace(%data%, "uberboss_"))) . (settings.maptracker.rename ? "" : " (" Lang_Trans("maps_boss") ")")
 			Else If LLK_StringCompare(%data%, ["unique"])
 			{
 				For key, val in unique_maps
 					If !override && InStr(%data%, key)
-						%data% := Lang_Trans("items_unique") ": " Lang_Trans("maps_" (val ? val : key)), override := 1
+						%data% := Lang_Trans("items_unique") . Lang_Trans("global_colon") " " Lang_Trans("maps_" (val ? val : key)), override := 1
 				If !override
-					%data% := Lang_Trans("items_unique") ": " (map_name ? map_name : SubStr(%data%, 7))
+					%data% := Lang_Trans("items_unique") . Lang_Trans("global_colon") " " (map_name ? map_name : SubStr(%data%, 7))
 			}
 			Else If LLK_PatternMatch(log_text, "", ["losttowers", "swamptower", "mesa", "bluff", "alpineridge"],,, 0)
 			{
@@ -277,8 +274,7 @@ Log_Get(log_text, data)
 				%data% := Lang_Trans("maps_" %data%)
 			Else If map_name
 				%data% := map_name
-
-			Loop, Parse, % %data%
+			Else Loop, Parse, % %data%
 				%data% := (A_Index = 1) ? "" : %data%, %data% .= (A_Index != 1 && (SubStr(%data%, 0) != " ") && RegExMatch(A_LoopField, "[A-Z]") ? " " : "") . A_LoopField
 		}
 	Return LLK_StringCase(%data%)
@@ -313,7 +309,7 @@ Log_Loop(mode := 0)
 			vars.log.file := FileOpen(vars.log.file_location, "a", "UTF-8")
 
 	guide := vars.leveltracker.guide ;short-cut variable
-	If !vars.news.wait && (!news_check || (A_TickCount >= news_check + 900000))
+	If !vars.news.wait && (!news_check || (A_TickCount >= news_check + 1800000))
 	{
 		news_check := A_TickCount
 		SetTimer, News, -100

@@ -1,9 +1,7 @@
-# currently unused folders/files
-img/Betrayal/
-
 # local folders created by the tool on startup/demand
 cheat-sheets/
-cheat-sheets?2/
+cheat-sheets 2/*
+!cheat-sheets 2/?sample?*
 exports/
 ini/
 ini?2/
@@ -21,3 +19,4 @@ img/*.jpg
 
 # files created by specific features on demand
 data/global/?stash-ninja??prices*
+data/global/leagues*.json

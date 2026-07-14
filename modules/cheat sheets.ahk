@@ -6,6 +6,13 @@
 	If !FileExist("ini" vars.poe_version "\cheat-sheets.ini")
 		IniWrite, % "", % "ini" vars.poe_version "\cheat-sheets.ini", settings
 
+	If FileExist("cheat-sheets 2\[sample] expedition island rumors\")
+	{
+		FileRemoveDir, % "cheat-sheets 2\[sample] expedition island rumors\", 1
+		If FileExist("cheat-sheets 2\expedition island rumors\")
+			FileMoveDir, % "cheat-sheets 2\expedition island rumors\", % "cheat-sheets 2\expedition rumors\", 2
+	}
+
 	settings.cheatsheets := {}, ini := IniBatchRead("ini" vars.poe_version "\cheat-sheets.ini")
 	settings.cheatsheets.fSize := !Blank(check := ini.settings["font-size"]) ? check : settings.general.fSize
 	LLK_FontDimensions(settings.cheatsheets.fSize, font_height, font_width), settings.cheatsheets.fHeight := font_height, settings.cheatsheets.fWidth := font_width
@@ -20,9 +27,12 @@
 	vars.cheatsheets.count_advanced := 0 ;save number of advanced sheets (used in the settings menu to determine if list of advanced sheets will be shown or not)
 
 	;rebuild list of cheat-sheets
-	vars.cheatsheets.list := {}
+	vars.cheatsheets.list := {}, vars.cheatsheets.samples := []
+	Loop, Files, % "cheat-sheets" vars.poe_version "\[sample]*", D
+		vars.cheatsheets.samples.Push({"folder": A_LoopFilePath, "version": LLK_IniRead(A_LoopFilePath "\info.ini", "general", "version")})
 	Loop, Files, % "cheat-sheets" vars.poe_version "\*", D
-		vars.cheatsheets.list[A_LoopFileName] := {}
+		If !InStr(A_LoopFileName, "[")
+			vars.cheatsheets.list[A_LoopFileName] := {}
 
 	For key in vars.cheatsheets.list
 	{
@@ -33,6 +43,7 @@
 		vars.cheatsheets.list[key].area := !Blank(check := ini.general["image search"]) ? check : "static"
 		vars.cheatsheets.list[key].type := !Blank(check := ini.general.type) ? check : "images"
 		vars.cheatsheets.list[key].activation := !Blank(check := ini.general.activation) ? check : "hold"
+		vars.cheatsheets.list[key].version := !Blank(check := ini.general.version) ? check : 0
 		vars.cheatsheets.list[key].scale := !Blank(check := ini.UI.scale) ? check : 1
 		vars.cheatsheets.list[key].pos := !Blank(check := ini.UI.position) ? check : "2,2"
 		vars.cheatsheets.list[key].pos := [SubStr(vars.cheatsheets.list[key].pos, 1, 1), SubStr(vars.cheatsheets.list[key].pos, 3, 1)]
@@ -100,10 +111,7 @@ Cheatsheet_Add(name, type)
 	global vars, settings
 
 	WinGetPos, xPos, yPos, width, height, % "ahk_id " vars.hwnd.settings.name
-	While (SubStr(name, 1, 1) = " ")
-		name := SubStr(name, 2)
-	While (SubStr(name, 0) = " ")
-		name := SubStr(name, 1, -1)
+	name := Trim(name, " ")
 	Loop, Parse, name
 	{
 		If !LLK_IsType(A_LoopField, "alnum")
@@ -135,7 +143,9 @@ Cheatsheet_Add(name, type)
 
 	If error
 		Return
-	types := ["images", "app", "advanced"]
+	types := ["images", "app", "advanced"], type := LLK_HasVal([Lang_Trans("m_cheat_images"), Lang_Trans("m_cheat_app"), Lang_Trans("m_cheat_advanced")], type)
+	If !type
+		Return
 	IniWrite, 1, % "cheat-sheets" vars.poe_version "\" name "\info.ini", general, enable
 	IniWrite, % types[type], % "cheat-sheets" vars.poe_version "\" name "\info.ini", general, type
 	IniWrite, 1, % "cheat-sheets" vars.poe_version "\" name "\info.ini", UI, scale
@@ -587,7 +597,7 @@ Cheatsheet_Image(name := "", hotkey := "") ;'hotkey' parameter used when overlay
 		pBitmap := Gdip_LoadImageFromFile(file)
 		If (pBitmap <= 0)
 		{
-			MsgBox, % Lang_Trans("cheat_loaderror") " " file
+			MsgBox,, Exile UI, % Lang_Trans("cheat_loaderror") " " file
 			If !InStr(hotkey0, "wheel")
 				KeyWait, % hotkey0
 			Return
@@ -1394,7 +1404,7 @@ Cheatsheet_Search(name)
 
 	If (pNeedle <= 0)
 	{
-		MsgBox, % Lang_Trans("cheat_loaderror") " " name
+		MsgBox,, Exile UI, % Lang_Trans("cheat_loaderror") " " name
 		Gdip_DisposeImage(pHaystack)
 		Return 0
 	}

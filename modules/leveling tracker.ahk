@@ -97,15 +97,14 @@
 		FileCreateDir, % "img\GUI\skill-tree" profile "\PoE 2\"
 
 	settings.leveltracker.timer := vars.client.stream ? 0 : !Blank(check := ini.settings["enable timer"]) ? check : 0
-	settings.leveltracker.pausetimer := !Blank(check := ini.settings["hideout pause"]) ? check : 0
 	settings.leveltracker.fade := !Blank(check := ini.settings["enable fading"]) ? check : 0
 	settings.leveltracker.fadetime := !Blank(check := ini.settings["fade-time"]) ? check : 5000
 	settings.leveltracker.fade_hover := !Blank(check := ini.settings["show on hover"]) ? check : 1
 	settings.leveltracker.geartracker := vars.client.stream || vars.poe_version ? 0 : !Blank(check := ini.settings["enable geartracker"]) ? check : 0
 	settings.leveltracker.recommend := !Blank(check := ini.settings["enable level recommendations"]) ? check : 0
 	settings.leveltracker.hotkeys := !Blank(check := ini.settings["enable page hotkeys"]) ? check : vars.client.stream
-	settings.leveltracker.hotkey_1 := !Blank(check := ini.settings["hotkey 1"]) ? check : "F3"
-	settings.leveltracker.hotkey_2 := !Blank(check := ini.settings["hotkey 2"]) ? check : "F4"
+	settings.leveltracker.hotkey_1 := !Blank(check := ini.settings["hotkey 1"]) ? check : "f3"
+	settings.leveltracker.hotkey_2 := !Blank(check := ini.settings["hotkey 2"]) ? check : "f4"
 	settings.leveltracker.tree_hotkey := tree_hotkey := !Blank(check := ini.settings["tree hotkey"]) ? check : "space"
 	settings.leveltracker.autotrack := !Blank(check := ini.settings.autotrack) ? check : 0
 
@@ -588,7 +587,7 @@ Leveltracker_Fade()
 	local
 	global vars, settings
 
-	If !settings.leveltracker.fade || vars.leveltracker.drag || !vars.hwnd.leveltracker.main || (vars.leveltracker.last > A_TickCount) || !LLK_Overlay(vars.hwnd.leveltracker.main, "check") || !vars.leveltracker.toggle
+	If !settings.leveltracker.fade || vars.leveltracker.tabfade || vars.leveltracker.drag || !vars.hwnd.leveltracker.main || (vars.leveltracker.last > A_TickCount) || !LLK_Overlay(vars.hwnd.leveltracker.main, "check") || !vars.leveltracker.toggle
 		Return
 	If (vars.leveltracker.last + settings.leveltracker.fadetime <= A_TickCount) && WinExist("ahk_id "vars.hwnd.leveltracker.main)
 	&& !(settings.leveltracker.fade_hover && LLK_IsBetween(vars.general.xMouse, vars.leveltracker.coords.x1, vars.leveltracker.coords.x2) && LLK_IsBetween(vars.general.yMouse, vars.leveltracker.coords.y1, vars.leveltracker.coords.y2))
@@ -823,6 +822,7 @@ Leveltracker_GuideEditor(cHWND)
 		Leveltracker_GuideEditor("save#" targetProfile)
 		If FileExist("ini" vars.poe_version "\leveling guide" targetProfile ".ini")
 			IniWrite, % (settings.leveltracker["guide" targetProfile].info.custom := 0), % "ini" vars.poe_version "\leveling guide" targetProfile ".ini", Info, custom
+		vars.leveltracker_editor.guide_updated := 1
 
 		If InStr(cHWND, "default")
 		{
@@ -850,7 +850,9 @@ Leveltracker_GuideEditor(cHWND)
 			LLK_Overlay(vars.hwnd.leveltracker_editor.main, "destroy"), vars.hwnd.leveltracker_editor.main := ""
 			Sleep 500
 			If WinActive("ahk_id " vars.hwnd.poe_client) || settings.general.dev && WinActive("ahk_exe Code.exe")
-				LLK_Overlay(vars.hwnd.settings.main, "show")
+				If vars.leveltracker_editor.guide_updated
+					Settings_menu(), vars.leveltracker_editor.guide_updated := 0
+				Else LLK_Overlay(vars.hwnd.settings.main, "show")
 			Return
 		}
 		Else If InStr(cHWND, "Wheel")
@@ -932,6 +934,7 @@ Leveltracker_GuideEditor(cHWND)
 			If InStr(cHWND, "#")
 				Return
 			IniWrite, % (settings.leveltracker["guide" profile].info.custom := (vars.leveltracker_editor.default_guide != json.dump(guide))), % "ini" vars.poe_version "\leveling guide" profile ".ini", Info, custom
+			vars.leveltracker_editor.guide_updated := 1
 
 			If (profile = settings.leveltracker.profile)
 			{
@@ -2046,6 +2049,8 @@ Leveltracker_PageDraw(name_main, name_back, preview, ByRef width, ByRef height, 
 							text := IsNumber(SubStr(text, 0)) ? SubStr(text, 1, -1) : text, hint_img := 1
 					If hint_img && (preview || settings.features.actdecoder && !Blank(settings.actdecoder.hotkey) || !settings.features.actdecoder || InStr(vars.log.areaid, "_town"))
 						color := "Aqua"
+					Else If (color = "Aqua") && !(preview || settings.features.actdecoder && !Blank(settings.actdecoder.hotkey) || !settings.features.actdecoder || InStr(vars.log.areaid, "_town"))
+						color := "White"
 
 					If InStr(part, "<" StrReplace(text, " ", "_") ">") && IsNumber(SubStr(text, 0))
 						text := SubStr(text, 1, -1)
@@ -2707,7 +2712,7 @@ Leveltracker_PobSkilltree(mode := "", ByRef failed_versions := "")
 		If !FileExist(file := "data\global\[leveltracker] tree" vars.poe_version " " version ".json")
 		{
 			LLK_ToolTip(Lang_Trans("global_downloading"), 2,,,, "Yellow")
-			Try download := HTTPtoVar("https://raw.githubusercontent.com/Lailloken/Lailloken-UI/refs/heads/" (dev ? "dev" : "main") "/data/global/%5Bleveltracker%5D%20tree" vars.poe_version "%20" version ".json")
+			Try download := HTTPtoVar("https://raw.githubusercontent.com/Lailloken/Exile-UI/refs/heads/" (dev ? "dev" : "main") "/data/global/%5Bleveltracker%5D%20tree" vars.poe_version "%20" version ".json")
 			If (SubStr(download, 1, 1) . SubStr(download, 0) != "{}")
 			{
 				failed_versions[version] := 1
@@ -3505,8 +3510,6 @@ Leveltracker_Timer(mode := "")
 			error := [Lang_Trans("lvltracker_timererror", 2), 2, "red"]
 		Else If (mode = "reset") && !timer.pause
 			error := [Lang_Trans("lvltracker_timererror", 3), 1, "red"]
-		Else If (mode = "pause") && settings.leveltracker.pausetimer && InStr(vars.log.areaID, "hideout")
-			error := [Lang_Trans("lvltracker_timererror", 4), 2, "red"]
 
 		yTooltip := vars.leveltracker.coords.y1 - settings.general.fHeight + 1, yTooltip := (yTooltip < vars.monitor.y) ? vars.leveltracker.coords.y2 - 1 : yTooltip
 		If error
@@ -3562,7 +3565,7 @@ Leveltracker_Timer(mode := "")
 
 	If vars.hwnd.leveltracker.main && (timer.pause = 0) ;advance the timer
 	{
-		timer.current_split += (timer.current_act = 11) ? 0 : 1, timer.pause := (settings.leveltracker.pausetimer && InStr(vars.log.areaID, "hideout")) || (timer.current_act = 11) ? 1 : 0
+		timer.current_split += (timer.current_act = 11) ? 0 : 1, timer.pause := (timer.current_act = 11) ? 1 : 0
 		If vars.log.act && (timer.current_act + 1 = vars.log.act) ;player enters the next act: save previous act's time, add it to total time, then reset it
 		{
 			IniWrite, % timer.current_split, % "ini" vars.poe_version "\leveling tracker.ini", % "current run" settings.leveltracker.profile, % "act "timer.current_act
