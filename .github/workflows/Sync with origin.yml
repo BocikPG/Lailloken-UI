@@ -74,6 +74,8 @@ jobs:
             fi
             NEW_TAG="${VERSION_CORE}${{ env.RELEASE_TAG_SUFFFIX }}${TAG_REMAINDER}"
             echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+            echo "version_core=$VERSION_CORE" >> "$GITHUB_OUTPUT"
+            echo "tag_remainder=$TAG_REMAINDER" >> "$GITHUB_OUTPUT"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -94,13 +96,68 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # 8. --- YOUR CUSTOM PART: CREATE THE RELEASE ---
+      # 8. Bump data/versions.json so your in-app updater actually notices the
+      #    new version (it compares this file, not tags/releases, directly).
+      #    Packing rule for the "_release" number, matching your
+      #    UpdateParseVersion layout (major=1 digit, minor/patch=2 digits each,
+      #    then always a 2-digit fork-subversion at the very end):
+      #      - not a hotfix: BASE + FORKSUB               (FORKSUB at the end)
+      #      - a hotfix:     BASE + HOTFIX + FORKSUB       (HOTFIX inserted
+      #                      before the trailing FORKSUB, i.e. "3 digits from
+      #                      the back" - e.g. base+forksub "16309" + "00"
+      #                      becomes "16309" + "01" + "00" = "1630901" + "00")
+      #    ASSUMPTION (please double check against your AHK parser): minor and
+      #    patch are always exactly 2 digits each. If either ever needs 3
+      #    digits, this packing and UpdateParseVersion would both need updating.
+      - name: Update data/versions.json
+        if: steps.check.outputs.exists == 'false' && steps.upstream_info.outputs.tag != ''
+        run: |
+          VERSION_CORE="${{ steps.upstream_info.outputs.version_core }}"   # e.g. "v1.63.9"
+          TAG_REMAINDER="${{ steps.upstream_info.outputs.tag_remainder }}" # e.g. "-hotfix.1" or ""
+          FORKSUB="${{ env.RELEASE_TAG_SUFFFIX }}"                        # e.g. ".1"
+
+          # Strip leading "v" and split into major.minor.patch
+          CORE_DIGITS="${VERSION_CORE#v}"
+          if [[ "$CORE_DIGITS" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+            MAJOR="${BASH_REMATCH[1]}"
+            MINOR=$(printf "%02d" "${BASH_REMATCH[2]}")
+            PATCH=$(printf "%02d" "${BASH_REMATCH[3]}")
+          else
+            echo "Could not parse major.minor.patch from '$VERSION_CORE' - skipping versions.json update" >&2
+            exit 1
+          fi
+          BASE="${MAJOR}${MINOR}${PATCH}"
+
+          FORKSUB_NUM="${FORKSUB#.}"
+          FORKSUB_PADDED=$(printf "%02d" "$FORKSUB_NUM")
+
+          if [ -n "$TAG_REMAINDER" ]; then
+            # It's a hotfix - pull the first number out of the remainder
+            # (e.g. "-hotfix.1" -> "1"), default to 1 if none found.
+            HOTFIX_NUM=$(echo "$TAG_REMAINDER" | grep -oE '[0-9]+' | head -1)
+            HOTFIX_NUM="${HOTFIX_NUM:-1}"
+            HOTFIX_PADDED=$(printf "%02d" "$HOTFIX_NUM")
+            NEW_RELEASE_NUM="${BASE}${HOTFIX_PADDED}${FORKSUB_PADDED}"
+          else
+            NEW_RELEASE_NUM="${BASE}${FORKSUB_PADDED}"
+          fi
+
+          NEW_URL="https://github.com/${{ github.repository }}/archive/refs/heads/${{ env.FORK_BRANCH }}.zip"
+
+          jq --argjson release "$NEW_RELEASE_NUM" --arg url "$NEW_URL" \
+            '._release = [$release, $url]' data/versions.json > data/versions.json.tmp
+          mv data/versions.json.tmp data/versions.json
+
+          git add data/versions.json
+          git commit -m "Bump versions.json for ${{ steps.upstream_info.outputs.new_tag }}"
+          git push origin ${{ env.FORK_BRANCH }}
+      # 9. --- YOUR CUSTOM PART: CREATE THE RELEASE ---
       - name: Create your own Release from the synced commit
         if: steps.check.outputs.exists == 'false' && steps.upstream_info.outputs.tag != ''
         run: |
           UPSTREAM_TAG="${{ steps.upstream_info.outputs.tag }}"
           NEW_TAG="${{ steps.upstream_info.outputs.new_tag }}"
-          # HEAD is now the merged commit from step 5.
+          # HEAD is now the versions.json-bump commit from step 8.
           # Tag that commit and push the tag, unless it's already there
           # (e.g. left over from a prior run that failed after tagging
           # but before the release was created).
@@ -114,6 +171,6 @@ jobs:
           gh release create "$NEW_TAG" \
             -R ${{ github.repository }} \
             --title "$NEW_TAG" \
-            --notes "Auto-merge with ${UPSTREAM_TAG} from original Lailloken's repo. Thanks for updates for your tool :3"
+            --notes "This release automatically merges upstream ${UPSTREAM_TAG} into the fork."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
