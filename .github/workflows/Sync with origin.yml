@@ -99,7 +99,10 @@ jobs:
           git tag "$NEW_TAG"
           git push origin "$NEW_TAG"
           # Create the GitHub Release in your fork
+          # (-R is required: gh defaults fork-aware commands to the parent/
+          # upstream repo, not this one, unless told otherwise)
           gh release create "$NEW_TAG" \
+            -R ${{ github.repository }} \
             --title "Synced from upstream ${UPSTREAM_TAG}" \
             --notes "This release automatically merges upstream ${UPSTREAM_TAG} into the fork."
         env:
