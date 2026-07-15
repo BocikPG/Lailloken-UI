@@ -171,6 +171,6 @@ jobs:
           gh release create "$NEW_TAG" \
             -R ${{ github.repository }} \
             --title "$NEW_TAG" \
-            --notes "This release automatically merges upstream ${UPSTREAM_TAG} into the fork."
+            --notes "Auto-merge with ${UPSTREAM_TAG} from original Lailloken's repo. Thanks for updates for your tool :3"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
