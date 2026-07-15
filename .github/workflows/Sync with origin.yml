@@ -77,17 +77,23 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # 7. Check if we already synced this specific release tag
+      # 7. Check if we already synced this specific release. We check for the
+      #    GitHub *release*, not just the git tag - a tag can already exist
+      #    from a prior run that pushed the tag but then failed before
+      #    creating the release, and we still want to retry release creation
+      #    in that case.
       - name: Check if release already synced
         id: check
         if: steps.upstream_info.outputs.tag != ''
         run: |
           NEW_TAG="${{ steps.upstream_info.outputs.new_tag }}"
-          if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+          if gh release view "$NEW_TAG" -R ${{ github.repository }} >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # 8. --- YOUR CUSTOM PART: CREATE THE RELEASE ---
       - name: Create your own Release from the synced commit
         if: steps.check.outputs.exists == 'false' && steps.upstream_info.outputs.tag != ''
@@ -95,9 +101,13 @@ jobs:
           UPSTREAM_TAG="${{ steps.upstream_info.outputs.tag }}"
           NEW_TAG="${{ steps.upstream_info.outputs.new_tag }}"
           # HEAD is now the merged commit from step 5.
-          # Tag that commit and push the tag.
-          git tag "$NEW_TAG"
-          git push origin "$NEW_TAG"
+          # Tag that commit and push the tag, unless it's already there
+          # (e.g. left over from a prior run that failed after tagging
+          # but before the release was created).
+          if ! git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+            git tag "$NEW_TAG"
+            git push origin "$NEW_TAG"
+          fi
           # Create the GitHub Release in your fork
           # (-R is required: gh defaults fork-aware commands to the parent/
           # upstream repo, not this one, unless told otherwise)
