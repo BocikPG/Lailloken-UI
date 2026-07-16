@@ -98,17 +98,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # 8. Bump data/versions.json so your in-app updater actually notices the
       #    new version (it compares this file, not tags/releases, directly).
-      #    Packing rule for the "_release" number, matching your
-      #    UpdateParseVersion layout (major=1 digit, minor/patch=2 digits each,
-      #    then always a 2-digit fork-subversion at the very end):
-      #      - not a hotfix: BASE + FORKSUB               (FORKSUB at the end)
-      #      - a hotfix:     BASE + HOTFIX + FORKSUB       (HOTFIX inserted
-      #                      before the trailing FORKSUB, i.e. "3 digits from
-      #                      the back" - e.g. base+forksub "16309" + "00"
-      #                      becomes "16309" + "01" + "00" = "1630901" + "00")
+      #    "_release" holds the base major/minor/patch number with the
+      #    fork-subversion always packed onto the end (2 digits, zero-padded -
+      #    matches HasKey("forksub") dot-append in _functions.ahk). "hotfix" is
+      #    a separate top-level field, only present when this release actually
+      #    is a hotfix (a lingering "hotfix": 0 would still count as present
+      #    via HasKey, so it's deleted outright when not applicable).
       #    ASSUMPTION (please double check against your AHK parser): minor and
-      #    patch are always exactly 2 digits each. If either ever needs 3
-      #    digits, this packing and UpdateParseVersion would both need updating.
+      #    patch are always exactly 2 digits each in the base number.
       - name: Update data/versions.json
         if: steps.check.outputs.exists == 'false' && steps.upstream_info.outputs.tag != ''
         run: |
@@ -128,24 +125,32 @@ jobs:
           fi
           BASE="${MAJOR}${MINOR}${PATCH}"
 
+          # Fork-subversion stays packed into the _release number (always
+          # present, zero-padded to 2 digits) - only hotfix moves out to its
+          # own top-level field.
           FORKSUB_NUM="${FORKSUB#.}"
           FORKSUB_PADDED=$(printf "%02d" "$FORKSUB_NUM")
-
-          if [ -n "$TAG_REMAINDER" ]; then
-            # It's a hotfix - pull the first number out of the remainder
-            # (e.g. "-hotfix.1" -> "1"), default to 1 if none found.
-            HOTFIX_NUM=$(echo "$TAG_REMAINDER" | grep -oE '[0-9]+' | head -1)
-            HOTFIX_NUM="${HOTFIX_NUM:-1}"
-            HOTFIX_PADDED=$(printf "%02d" "$HOTFIX_NUM")
-            NEW_RELEASE_NUM="${BASE}${HOTFIX_PADDED}${FORKSUB_PADDED}"
-          else
-            NEW_RELEASE_NUM="${BASE}${FORKSUB_PADDED}"
-          fi
+          RELEASE_NUM="${BASE}${FORKSUB_PADDED}"
 
           NEW_URL="https://github.com/${{ github.repository }}/archive/refs/heads/${{ env.FORK_BRANCH }}.zip"
 
-          jq --argjson release "$NEW_RELEASE_NUM" --arg url "$NEW_URL" \
-            '._release = [$release, $url]' data/versions.json > data/versions.json.tmp
+          if [ -n "$TAG_REMAINDER" ]; then
+            # It's a hotfix - pull the first number out of the remainder
+            # (e.g. "-hotfix.1" -> "1"), default to 1 if none found. This goes
+            # into its own "hotfix" field, not packed into the release number.
+            HOTFIX_NUM=$(echo "$TAG_REMAINDER" | grep -oE '[0-9]+' | head -1)
+            HOTFIX_NUM="${HOTFIX_NUM:-1}"
+            jq --argjson release "$RELEASE_NUM" --arg url "$NEW_URL" --argjson hotfix "$HOTFIX_NUM" \
+               '._release = [$release, $url] | .hotfix = $hotfix' \
+               data/versions.json > data/versions.json.tmp
+          else
+            # Not a hotfix - make sure any stale "hotfix" key from a prior
+            # release is removed (HasKey would otherwise still treat it as
+            # present even if it were left at 0).
+            jq --argjson release "$RELEASE_NUM" --arg url "$NEW_URL" \
+               'del(.hotfix) | ._release = [$release, $url]' \
+               data/versions.json > data/versions.json.tmp
+          fi
           mv data/versions.json.tmp data/versions.json
 
           git add data/versions.json
