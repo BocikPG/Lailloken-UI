@@ -6600,20 +6600,24 @@ Settings_updater()
 			vars.hwnd.settings["versionselect_" major . minor] := hwnd, vars.hwnd.help_tooltips["settings_updater changelog " major . minor] := hwnd1, added[major] := 1
 		}
 
-		;NEW: fork's own subversion/build row - mirrors the row above but is a fixed set of
-		;4 buttons (this fork's versioning scheme only supports 4 subversions per release).
-		;Assumption: this is a secondary/lower-priority selector alongside the hotfix row above -
-		;please review, since I couldn't test this against the real changelog data.
-		Gui, %GUI%: Font, underline bold
-		Gui, %GUI%: Add, Text, % "Section xs y+" vars.settings.spacing, % "fork build"
-		Gui, %GUI%: Font, norm
-		selected_forksub := vars.updater.selected_forksub
-		Loop, 4
+		;Fork's own subversion/build row - mirrors the row above, but only shows as many
+		;buttons as builds actually exist. "_release" is packed as
+		;major+minor(2)+patch(2)+forksub(2), so the last 2 digits of the live/remote
+		;version tell us how many fork builds exist for the current release.
+		max_forksub := SubStr(vars.updater.latest.1, -1) + 0
+		If max_forksub
 		{
-			color := (selected_forksub = A_Index) ? " cFuchsia" : ""
-			Gui, %GUI%: Add, Text, % (A_Index = 1 ? "Section xs" : "ys x+" settings.general.fWidth/2) " Border BackgroundTrans HWNDhwnd gSettings_updater2 Center w" settings.general.fWidth * 2 . color, % A_Index
-			Gui, %GUI%: Add, Progress, % "Disabled xp yp wp hp Border HWNDhwnd1 Background" vars.settings.cButtons2 " c" vars.settings.cButtons, 100
-			vars.hwnd.settings["forksubselect_" A_Index] := hwnd, vars.hwnd.help_tooltips["settings_updater forksub " A_Index] := hwnd1
+			Gui, %GUI%: Font, underline bold
+			Gui, %GUI%: Add, Text, % "Section xs y+" vars.settings.spacing, % "fork build"
+			Gui, %GUI%: Font, norm
+			selected_forksub := vars.updater.selected_forksub
+			Loop, % max_forksub
+			{
+				color := (selected_forksub = A_Index) ? " cFuchsia" : ""
+				Gui, %GUI%: Add, Text, % (A_Index = 1 ? "Section xs" : "ys x+" settings.general.fWidth/2) " Border BackgroundTrans HWNDhwnd gSettings_updater2 Center w" settings.general.fWidth * 2 . color, % A_Index
+				Gui, %GUI%: Add, Progress, % "Disabled xp yp wp hp Border HWNDhwnd1 Background" vars.settings.cButtons2 " c" vars.settings.cButtons, 100
+				vars.hwnd.settings["forksubselect_" A_Index] := hwnd, vars.hwnd.help_tooltips["settings_updater forksub " A_Index] := hwnd1
+			}
 		}
 	}
 
@@ -6671,7 +6675,7 @@ Settings_updater2(cHWND := "")
 	If in_progress
 		Return
 	check := LLK_HasVal(vars.hwnd.settings, cHWND), control := SubStr(check, InStr(check, "_") + 1)
-	
+	;TODO: replace BocikPG/Lailloken-UI below with your actual GitHub username/fork name
 	If InStr(check, "githubpage_")
 		Run, % "https://github.com/BocikPG/Lailloken-UI/tree/"control
 	Else If (check = "releases_page")
@@ -6699,7 +6703,7 @@ Settings_updater2(cHWND := "")
 		Settings_menu("updater")
 	}
 	Else If InStr(check, "fullchangelog_")
-		
+
 		Run, % "https://github.com/BocikPG/Lailloken-UI/releases/tag/v" control (vars.updater.selected_forksub ? "." vars.updater.selected_forksub : "")
 	Else If InStr(check, "get_")
 	{
@@ -6724,7 +6728,6 @@ Settings_updater2(cHWND := "")
 	Else If (check = "manual")
 	{
 		in_progress := 1, UpdateDownload(vars.hwnd.settings.manual_bar)
-		
 		UrlDownloadToFile, % "https://github.com/BocikPG/Lailloken-UI/archive/refs/tags/v" vars.update.2 (vars.updater.selected_forksub ? "." vars.updater.selected_forksub : "") ".zip", % "update\update_" vars.updater.target_version.2 ".zip"
 		error := ErrorLevel || !FileExist("update\update_" vars.updater.target_version.2 ".zip") ? 1 : 0
 		in_progress := 0
@@ -6741,7 +6744,6 @@ Settings_updater2(cHWND := "")
 	}
 	Else If (check = "github")
 	{
-		
 		Run, % "https://github.com/BocikPG/Lailloken-UI/archive/refs/tags/v" vars.update.2 (vars.updater.selected_forksub ? "." vars.updater.selected_forksub : "") ".zip"
 		Run, explore %A_ScriptDir%
 		ExitApp
