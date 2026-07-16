@@ -6599,6 +6599,22 @@ Settings_updater()
 			Gui, %GUI%: Add, Progress, % "Disabled xp yp wp hp Border HWNDhwnd1 Background" vars.settings.cButtons2 " c" vars.settings.cButtons, 100
 			vars.hwnd.settings["versionselect_" major . minor] := hwnd, vars.hwnd.help_tooltips["settings_updater changelog " major . minor] := hwnd1, added[major] := 1
 		}
+
+		;NEW: fork's own subversion/build row - mirrors the row above but is a fixed set of
+		;4 buttons (this fork's versioning scheme only supports 4 subversions per release).
+		;Assumption: this is a secondary/lower-priority selector alongside the hotfix row above -
+		;please review, since I couldn't test this against the real changelog data.
+		Gui, %GUI%: Font, underline bold
+		Gui, %GUI%: Add, Text, % "Section xs y+" vars.settings.spacing, % "fork build"
+		Gui, %GUI%: Font, norm
+		selected_forksub := vars.updater.selected_forksub
+		Loop, 4
+		{
+			color := (selected_forksub = A_Index) ? " cFuchsia" : ""
+			Gui, %GUI%: Add, Text, % (A_Index = 1 ? "Section xs" : "ys x+" settings.general.fWidth/2) " Border BackgroundTrans HWNDhwnd gSettings_updater2 Center w" settings.general.fWidth * 2 . color, % A_Index
+			Gui, %GUI%: Add, Progress, % "Disabled xp yp wp hp Border HWNDhwnd1 Background" vars.settings.cButtons2 " c" vars.settings.cButtons, 100
+			vars.hwnd.settings["forksubselect_" A_Index] := hwnd, vars.hwnd.help_tooltips["settings_updater forksub " A_Index] := hwnd1
+		}
 	}
 
 	If vars.updater.selected
@@ -6655,10 +6671,11 @@ Settings_updater2(cHWND := "")
 	If in_progress
 		Return
 	check := LLK_HasVal(vars.hwnd.settings, cHWND), control := SubStr(check, InStr(check, "_") + 1)
+	
 	If InStr(check, "githubpage_")
-		Run, % "https://github.com/Lailloken/Exile-UI/tree/"control
+		Run, % "https://github.com/BocikPG/Lailloken-UI/tree/"control
 	Else If (check = "releases_page")
-		Run, % "https://github.com/Lailloken/Exile-UI/releases"
+		Run, % "https://github.com/BocikPG/Lailloken-UI/releases"
 	Else If (check = "update_check")
 	{
 		IniWrite, % (settings.updater.update_check := !settings.updater.update_check), ini\config.ini, settings, update auto-check
@@ -6676,8 +6693,14 @@ Settings_updater2(cHWND := "")
 		vars.updater.selected := SubStr(check, InStr(check, "_") + 1)
 		Settings_menu("updater")
 	}
+	Else If InStr(check, "forksubselect_")
+	{
+		vars.updater.selected_forksub := SubStr(check, InStr(check, "_") + 1) + 0
+		Settings_menu("updater")
+	}
 	Else If InStr(check, "fullchangelog_")
-		Run, % "https://github.com/Lailloken/Exile-UI/releases/tag/v" control
+		
+		Run, % "https://github.com/BocikPG/Lailloken-UI/releases/tag/v" control (vars.updater.selected_forksub ? "." vars.updater.selected_forksub : "")
 	Else If InStr(check, "get_")
 	{
 		If settings.general.dev
@@ -6701,7 +6724,8 @@ Settings_updater2(cHWND := "")
 	Else If (check = "manual")
 	{
 		in_progress := 1, UpdateDownload(vars.hwnd.settings.manual_bar)
-		UrlDownloadToFile, % "https://github.com/Lailloken/Exile-UI/archive/refs/tags/v" vars.update.2 ".zip", % "update\update_" vars.updater.target_version.2 ".zip"
+		
+		UrlDownloadToFile, % "https://github.com/BocikPG/Lailloken-UI/archive/refs/tags/v" vars.update.2 (vars.updater.selected_forksub ? "." vars.updater.selected_forksub : "") ".zip", % "update\update_" vars.updater.target_version.2 ".zip"
 		error := ErrorLevel || !FileExist("update\update_" vars.updater.target_version.2 ".zip") ? 1 : 0
 		in_progress := 0
 		SetTimer, UpdateDownload, Delete
@@ -6717,7 +6741,8 @@ Settings_updater2(cHWND := "")
 	}
 	Else If (check = "github")
 	{
-		Run, % "https://github.com/Lailloken/Exile-UI/archive/refs/tags/v" vars.update.2 ".zip"
+		
+		Run, % "https://github.com/BocikPG/Lailloken-UI/archive/refs/tags/v" vars.update.2 (vars.updater.selected_forksub ? "." vars.updater.selected_forksub : "") ".zip"
 		Run, explore %A_ScriptDir%
 		ExitApp
 	}

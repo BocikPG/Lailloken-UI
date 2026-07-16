@@ -644,7 +644,7 @@ UpdateCheck(timer := 0) ;checks for updates: timer param refers to whether this 
 	}
 
 	FileDelete, data\version_check.json
-	Try version_check := HTTPtoVar("https://raw.githubusercontent.com/Lailloken/Exile-UI/" (settings.general.dev_env ? "dev" : "main") "/data/versions.json")
+	Try version_check := HTTPtoVar("https://raw.githubusercontent.com/BocikPG/Lailloken-UI/" (settings.general.dev_env ? "dev" : "main") "/data/versions.json")
 	update.1 := !InStr(version_check, """_release""") ? -4 : update.1 ;error-code -4 = version-list download failed
 	If (update.1 = -4)
 	{
@@ -661,7 +661,7 @@ UpdateCheck(timer := 0) ;checks for updates: timer param refers to whether this 
 	vars.updater.skip := LLK_IniRead("ini\config.ini", "versions", "skip", 0)
 
 	If !settings.general.dev
-		Try changelog_check := HTTPtoVar("https://raw.githubusercontent.com/Lailloken/Exile-UI/" (settings.general.dev_env ? "dev" : "main") "/data/changelog.json")
+		Try changelog_check := HTTPtoVar("https://raw.githubusercontent.com/BocikPG/Lailloken-UI/" (settings.general.dev_env ? "dev" : "main") "/data/changelog.json")
 	Else changelog_check := LLK_FileRead("data\changelog.json")
 	changelog_check := changelog_check ? Trim(changelog_check, " `r`n`t") : ""
 
@@ -709,8 +709,9 @@ UpdateCheck(timer := 0) ;checks for updates: timer param refers to whether this 
 
 		If !FileExist("update\update_" vars.updater.target_version.2 ".zip")
 			If (vars.updater.target_version.1 = "dev" || vars.updater.target_version.1 = "hotfix")
+				;left pointed at the original repo - these are upstream's rolling dev/hotfix branches, not something your fork maintains
 				UrlDownloadToFile, % "https://github.com/Lailloken/Exile-UI/archive/refs/heads/" vars.updater.target_version.1 ".zip", % "update\update_" vars.updater.target_version.2 ".zip"
-			Else UrlDownloadToFile, % "https://github.com/Lailloken/Exile-UI/archive/refs/tags/v" vars.updater.target_version.1 ".zip", % "update\update_" vars.updater.target_version.2 ".zip"
+			Else UrlDownloadToFile, % "https://github.com/BocikPG/Lailloken-UI/archive/refs/tags/v" vars.updater.target_version.1 (vars.updater.selected_forksub ? "." vars.updater.selected_forksub : "") ".zip", % "update\update_" vars.updater.target_version.2 ".zip"
 		If ErrorLevel || !FileExist("update\update_" vars.updater.target_version.2 ".zip")
 			vars.update := [-5, vars.updater.target_version.1] ;error-code -5 = download of zip-file failed
 		If (vars.update.1 >= 0)
@@ -795,7 +796,7 @@ UpdateParseVersion(string)
 	{
 		If (A_Index = 1)
 			string := ""
-		string .= (A_Index = 1) ? "1." : (A_Index = 3) ? A_LoopField "." : (InStr("47", A_Index) && A_LoopField = "0") ? "" : (A_LoopField = ".") ? " (hotfix " : A_LoopField
+		string .= (A_Index = 1) ? "1." : (A_Index = 3 || A_Index = 5) ? A_LoopField "." : (InStr("469", A_Index) && A_LoopField = "0") ? "" : (A_LoopField = ".") ? " (hotfix " : A_LoopField
 	}
 	string .= InStr(string, "(hotfix") ? ")" : ""
 	Return string
