@@ -140,6 +140,19 @@ Init_currency_counter()
 
     ; Runtime state
     vars.currency_counter := {"picked": 0, "name": "", "last_used": "", "currencies": {}, "session_name": "", "session_img": "", "drop_on_shift_release": 0, "shift_timer": 0}
+
+    ; Names that must never be "picked up" as a counted currency
+    vars.currency_counter.blacklist_poe1 := ["OMEN","FOSSIL","OIL","SPLINTER","PORTAL","SHARD","LIFEFORCE"] 
+    vars.currency_counter.blacklist_poe2 := ["OMEN"] 
+
+    ; Fossil name -> array of effect description lines
+    vars.currency_counter.fossils := {}
+    If FileExist("data\english\fossils.json")
+    {
+        FileRead, raw_fossils, % "data\english\fossils.json"
+        vars.currency_counter.fossils := IsObject(check := Json.Load(raw_fossils)) ? check : {}
+    }
+
     vars.hwnd.currency_counter := {"main": "", "drag": ""}
     vars.hwnd.currency_counter_table := {"main": ""}
     vars.cc_logs := {"sort_col": "", "sort_asc": 1, "x": settings.currency_counter.logs_x, "y": settings.currency_counter.logs_y, "keywords": {}}
@@ -280,6 +293,29 @@ CurrencyCounter_BarClick()
 }
 
 ; ──────────────────────────────────────────────────────────────
+;  Currency blacklist check – names that must never be "picked
+;  up" as a counted currency (matched via InStr on the OCR'd
+;  item name). The actual lists live in vars.currency_counter
+;  .blacklist_poe1 / .blacklist_poe2, populated once in
+;  Init_currency_counter().
+;
+;  vars.poe_version is blank ("") for PoE1, non-blank for PoE2 –
+;  see the Alt-substitution block in CurrencyCounter_LClick().
+; ──────────────────────────────────────────────────────────────
+CurrencyCounter_IsBlacklisted(name)
+{
+    local
+    global vars
+
+    list := (vars.poe_version = "") ? vars.currency_counter.blacklist_poe1 : vars.currency_counter.blacklist_poe2
+    For i, entry in list
+        If InStr(name, entry)
+            Return 1
+
+    Return 0
+}
+
+; ──────────────────────────────────────────────────────────────
 ;  RClick / LClick / Esc  (unchanged from original)
 ; ──────────────────────────────────────────────────────────────
 CurrencyCounter_RClick()
@@ -303,7 +339,7 @@ CurrencyCounter_RClick()
     If Blank(name)
         Return
     name := Format("{:U}", name)
-    If InStr(name, "OMEN") ; Thanks GGG :D
+    If CurrencyCounter_IsBlacklisted(name)
         Return
     vars.currency_counter.picked := 1
     vars.currency_counter.name := name
@@ -337,7 +373,7 @@ CurrencyCounter_LClick()
     {
         if (originalName = "ORB OF ALTERATION")
             vars.currency_counter.name := "ORB OF AUGMENTATION"
-        else if (originalName = "ALCHEMY ORB")
+        else if (originalName = "ORB OF ALCHEMY")
             vars.currency_counter.name := "ORB OF SCOURING"
         ; else keep unchanged
     }
