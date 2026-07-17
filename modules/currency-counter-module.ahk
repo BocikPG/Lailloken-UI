@@ -80,6 +80,20 @@
 ;     feature buttons, add:
 ;       If settings.features.currency_counter
 ;           Omni_AddRadialButton("currency_counter", "CurrencyCounter_TableToggle()", vars.pics.currency_counter.icon)
+;
+;  GROUP-APPLY (batch pick, e.g. fossils via a resonator)
+;  ─────────────────────────────────────────────────────────
+;  Some blacklisted names (vars.currency_counter.blacklist_poe1/2) are
+;  also marked "groupable" (vars.currency_counter.groupable_poe1/2 –
+;  currently just FOSSIL). RClick on a groupable-but-blacklisted item
+;  routes into CurrencyCounter_GroupAdd() instead of being ignored,
+;  staging it in vars.currency_counter.group and arming "picked" state.
+;  LClick then increments every staged item's count. The group is NOT
+;  cleared after applying – like a normal single pick, it stays armed
+;  while Shift is held (CurrencyCounter_LClick / CheckShiftRelease) so
+;  repeated applies keep counting, and clears once Shift is released.
+;  No hotkeys.ahk changes are needed; this reuses the existing RClick/
+;  LClick bindings from step 6.
 ; ============================================================
 
 ; ──────────────────────────────────────────────────────────────
@@ -139,11 +153,17 @@ Init_currency_counter()
     settings.currency_counter.fWidth := width
 
     ; Runtime state
-    vars.currency_counter := {"picked": 0, "name": "", "last_used": "", "currencies": {}, "session_name": "", "session_img": "", "drop_on_shift_release": 0, "shift_timer": 0}
+    vars.currency_counter := {"picked": 0, "name": "", "group": [], "last_used": "", "currencies": {}, "session_name": "", "session_img": "", "drop_on_shift_release": 0, "shift_timer": 0}
 
     ; Names that must never be "picked up" as a counted currency
     vars.currency_counter.blacklist_poe1 := ["OMEN","FOSSIL","OIL","SPLINTER","PORTAL","SHARD","LIFEFORCE"] 
     vars.currency_counter.blacklist_poe2 := ["OMEN"] 
+
+    ; Blacklisted names that are still allowed to be staged into a group
+    ; (e.g. fossils, since a resonator's sockets get filled and logged
+    ; together). See CurrencyCounter_IsGroupable().
+    vars.currency_counter.groupable_poe1 := ["RESONATOR"]
+    vars.currency_counter.groupable_poe2 := []
 
     ; Fossil name -> array of effect description lines
     vars.currency_counter.fossils := {}
@@ -227,7 +247,7 @@ CurrencyCounter_SetActive(id)
 
     settings.currency_counter.active := id
     IniWrite, % id, % "ini" vars.poe_version "\currency-counter.ini", settings, active
-    vars.currency_counter.picked := 0, vars.currency_counter.name := ""
+    vars.currency_counter.picked := 0, vars.currency_counter.name := "", vars.currency_counter.group := []
     CurrencyCounter_DrawBar()
     Return 1
 }
@@ -316,6 +336,26 @@ CurrencyCounter_IsBlacklisted(name)
 }
 
 ; ──────────────────────────────────────────────────────────────
+;  Groupable check – blacklisted names that may still be staged
+;  into vars.currency_counter.group via CurrencyCounter_GroupAdd()
+;  (e.g. fossils, so they can be logged via a resonator instead of
+;  the normal single-currency pick). Lists live in vars.currency_counter
+;  .groupable_poe1 / .groupable_poe2, populated in Init_currency_counter().
+; ──────────────────────────────────────────────────────────────
+CurrencyCounter_IsGroupable(name)
+{
+    local
+    global vars
+
+    list := (vars.poe_version = "") ? vars.currency_counter.groupable_poe1 : vars.currency_counter.groupable_poe2
+    For i, entry in list
+        If InStr(name, entry)
+            Return 1
+
+    Return 0
+}
+
+; ──────────────────────────────────────────────────────────────
 ;  RClick / LClick / Esc  (unchanged from original)
 ; ──────────────────────────────────────────────────────────────
 CurrencyCounter_RClick()
@@ -327,6 +367,7 @@ CurrencyCounter_RClick()
     {
         vars.currency_counter.picked := 0
         vars.currency_counter.name := ""
+        vars.currency_counter.group := []
         CurrencyCounter_DrawBar()
         Return
     }
@@ -335,18 +376,154 @@ CurrencyCounter_RClick()
         Return
 
     ; Pick currency from item under cursor
-    name := CurrencyCounter_ReadItemName()
+    name := CurrencyCounter_ReadItemName(clip)
     If Blank(name)
         Return
     name := Format("{:U}", name)
     If CurrencyCounter_IsBlacklisted(name)
-        Return
+		Return
+	If CurrencyCounter_IsGroupable(name)
+	{
+		CurrencyCounter_GroupAdd(name, clip)
+		Return
+	}
     vars.currency_counter.picked := 1
     vars.currency_counter.name := name
     If !IsObject(vars.currency_counter.currencies[name])
         vars.currency_counter.currencies[name] := {"count": 0, "price": 0.0, "price_currency": "exalt", "price_updated": 0}
     CurrencyCounter_DrawBar()
 }
+
+; Add a currency name to the staged group and arm "picked" state so
+; the usual LClick / Esc hotkeys engage. clip is the raw copied item
+; text. For a RESONATOR, we use clip to back-calculate which fossils
+; are socketed (see CurrencyCounter_GroupAddResonator below) instead
+; of just staging the resonator's own name.
+CurrencyCounter_GroupAdd(name, clip := "")
+{
+    local
+    global vars
+
+    If InStr(name, "RESONATOR")
+    {
+        CurrencyCounter_GroupAddResonator(name, clip)
+        Return
+    }
+
+    If !IsObject(vars.currency_counter.group)
+        vars.currency_counter.group := []
+
+    vars.currency_counter.group.Push(name)
+    vars.currency_counter.picked := 1
+    vars.currency_counter.name := "" ; group mode – no single held name
+    CurrencyCounter_DrawBar()
+}
+
+; ──────────────────────────────────────────────────────────────
+;  Resonator handling
+;
+;  Sockets per tier: Primitive 1, Potent 2, Powerful 3, Prime 4
+;  (the "Chaotic" prefix doesn't change socket count).
+;
+;  A resonator's tooltip shows the COMBINED effect of every socketed
+;  fossil (its "Reforges a rare item..." block). We brute-force every
+;  combination of fossils (from fossils.json, repeats allowed) whose
+;  size equals the resonator's socket count, apply the observed
+;  cancellation rule (opposite polarity on the same category wipes
+;  both lines, e.g. "More Fire" + "No Fire" cancel), and accept the
+;  first combo whose resulting line set matches the tooltip exactly.
+;
+;  This also doubles as the fullness check: a resonator with empty
+;  sockets won't have a fossil combo of the FULL socket count that
+;  reproduces its (shorter/absent) modifier text, so no match is
+;  found and it's not picked up.
+; ──────────────────────────────────────────────────────────────
+CurrencyCounter_GroupAddResonator(name, clip)
+{
+    local
+    global vars
+
+    sockets := CurrencyCounter_ResonatorSockets(name)
+    If !sockets
+        Return ; unrecognized tier – ignore
+
+    lines := []
+    If RegExMatch(clip, "si)Reforges a rare item with new random modifiers\r?\n(.*?)\r?\n-{2,}", m)
+    {
+        For i, ln in StrSplit(m1, "`n", "`r")
+        {
+            ln := Trim(ln)
+            If !Blank(ln)
+                lines.Push(ln)
+        }
+    }
+
+    combo := CurrencyCounter_FindFossilCombo(lines, sockets)
+    If !IsObject(combo)
+        Return ; not full (or unrecognized combo) – do not pick it up
+
+    If !IsObject(vars.currency_counter.group)
+        vars.currency_counter.group := []
+
+    For i, fname in combo
+        vars.currency_counter.group.Push(Format("{:U}", i))
+    vars.currency_counter.group.Push(name) ; log the resonator itself too
+
+    vars.currency_counter.picked := 1
+    vars.currency_counter.name := ""
+    CurrencyCounter_DrawBar()
+}
+
+CurrencyCounter_ResonatorSockets(name)
+{
+    If InStr(name, "PRIMITIVE")
+        Return 1
+    If InStr(name, "POTENT")
+        Return 2
+    If InStr(name, "POWERFUL")
+        Return 3
+    If InStr(name, "PRIME")
+        Return 4
+    Return 0
+}
+
+; Brute-force search: try every multiset of `count` fossil names (with
+; repetition, order-independent) from fossils.json until one reproduces
+; observedLines exactly. Returns the matching combo (array of fossil
+; names) or "" if none found.
+CurrencyCounter_FindFossilCombo(observedLines, count)
+{
+    local
+    global vars
+
+	combo := []
+	for i, line in observedLines
+	{
+		for j, fossil in vars.currency_counter.fossils
+		{
+			if(combo.HasKey(j))
+				continue
+			for k, fossil_line in fossil
+			{
+				if(line == fossil_line)
+				{
+					lineFound := 1
+					combo[j] := true
+					break
+				}
+			}
+			if(lineFound)
+				break
+		}
+		lineFound := 0
+	}
+
+	if(count != combo.Count())
+		Return ""
+
+    Return combo
+}
+
 
 CurrencyCounter_LClick()
 {
@@ -367,31 +544,52 @@ CurrencyCounter_LClick()
     if !RegExMatch(Clipboard, "i)Rarity:")
         return ; not an item – do not increment
 
-    ; --- NEW: Temporary currency substitution for PoE1 with Alt held ---
-    originalName := vars.currency_counter.name
-    if (vars.poe_version = "" && GetKeyState("Alt", "P"))
+    ; --- Group apply: everything staged (e.g. fossils) gets +1. The
+    ;     group is NOT cleared here – it stays armed, just like a single
+    ;     picked currency, until Shift is released below / in
+    ;     CurrencyCounter_CheckShiftRelease(). ---
+    If (IsObject(vars.currency_counter.group) && vars.currency_counter.group.Count())
     {
-        if (originalName = "ORB OF ALTERATION")
-            vars.currency_counter.name := "ORB OF AUGMENTATION"
-        else if (originalName = "ORB OF ALCHEMY")
-            vars.currency_counter.name := "ORB OF SCOURING"
-        ; else keep unchanged
+        For i, gname in vars.currency_counter.group
+        {
+            If !IsObject(vars.currency_counter.currencies[gname])
+                vars.currency_counter.currencies[gname] := {"count": 0, "price": 0.0, "price_currency": "exalt", "price_updated": 0}
+            vars.currency_counter.currencies[gname].count += 1
+            CurrencyCounter_SaveCurrency(gname)
+        }
+        vars.currency_counter.last_used := vars.currency_counter.group
+    }
+    Else
+    {
+        ; --- Single-currency flow (unchanged) ---
+        originalName := vars.currency_counter.name
+
+        ; --- Temporary currency substitution for PoE1 with Alt held ---
+        if (vars.poe_version = "" && GetKeyState("Alt", "P"))
+        {
+            if (originalName = "ORB OF ALTERATION")
+                vars.currency_counter.name := "ORB OF AUGMENTATION"
+            else if (originalName = "ORB OF ALCHEMY")
+                vars.currency_counter.name := "ORB OF SCOURING"
+            ; else keep unchanged
+        }
+
+        ; --- Use the (possibly substituted) currency name for counting ---
+        if(Blank(vars.currency_counter.currencies[vars.currency_counter.name]))
+        {
+            vars.currency_counter.currencies[vars.currency_counter.name] := {"count": 0, "price": 0.0, "price_currency": "exalt", "price_updated": 0}
+        }
+        vars.currency_counter.currencies[vars.currency_counter.name].count += 1
+        vars.currency_counter.last_used := vars.currency_counter.name
+
+        CurrencyCounter_SaveCurrency(vars.currency_counter.name)
+
+        ; --- Restore original picked currency name before any state changes ---
+        vars.currency_counter.name := originalName
     }
 
-    ; --- Use the (possibly substituted) currency name for counting ---
-    if(Blank(vars.currency_counter.currencies[vars.currency_counter.name]))
-    {
-        vars.currency_counter.currencies[vars.currency_counter.name] := {"count": 0, "price": 0.0, "price_currency": "exalt", "price_updated": 0}
-    }
-    vars.currency_counter.currencies[vars.currency_counter.name].count += 1
-    vars.currency_counter.last_used := vars.currency_counter.name
-
-    CurrencyCounter_SaveCurrency(vars.currency_counter.name)
-
-    ; --- Restore original picked currency name before any state changes ---
-    vars.currency_counter.name := originalName
-
-    ; Watch for shift-drop (original logic, now using restored name)
+    ; --- Shift handling – shared by both the group and single-name
+    ;     cases above; clears (or defers clearing) picked/name/group. ---
     If GetKeyState("Shift", "P")
     {
         vars.currency_counter.drop_on_shift_release := 1
@@ -405,6 +603,7 @@ CurrencyCounter_LClick()
     {
         vars.currency_counter.picked := 0
         vars.currency_counter.name := ""   ; cleared because no shift held
+        vars.currency_counter.group := []
     }
 
     CurrencyCounter_DrawBar()
@@ -417,6 +616,7 @@ CurrencyCounter_Esc()
 
     vars.currency_counter.picked := 0
     vars.currency_counter.name := ""
+    vars.currency_counter.group := []
     CurrencyCounter_DrawBar()
 }
 
@@ -435,6 +635,7 @@ CurrencyCounter_CheckShiftRelease()
     If !GetKeyState("Shift", "P")
     {
         vars.currency_counter.picked := 0, vars.currency_counter.name := ""
+        vars.currency_counter.group := []
         vars.currency_counter.drop_on_shift_release := 0
         CurrencyCounter_DrawBar()
         vars.currency_counter.shift_timer := 0
@@ -462,7 +663,21 @@ CurrencyCounter_ProcessLog(line)
     Else If InStr(line, "Failed to apply item")
     {
         currency_name := vars.currency_counter.last_used
-        If IsObject(vars.currency_counter.currencies[currency_name])
+		if(currency_name.Count() > 0)
+		{
+			Loop, % currency_name.Count()
+			{
+				currency := currency_name[A_Index]
+				if IsObject(vars.currency_counter.currencies[currency])
+				{
+					if vars.currency_counter.currencies[currency].count > 0
+						vars.currency_counter.currencies[currency].count -= 1
+					CurrencyCounter_SaveCurrency(currency)
+					CurrencyCounter_DrawBar()
+				}
+			}
+		}
+        Else if IsObject(vars.currency_counter.currencies[currency_name])
         {
             If vars.currency_counter.currencies[currency_name].count > 0
                 vars.currency_counter.currencies[currency_name].count -= 1
@@ -552,6 +767,13 @@ CurrencyCounter_DrawBar()
     dragSz := Floor(fW * 0.6)
 
     held_name := vars.currency_counter.picked ? vars.currency_counter.name : ""
+    If (IsObject(vars.currency_counter.group) && vars.currency_counter.group.Count())
+    {
+        group_list := ""
+		For i, gname in vars.currency_counter.group
+		    group_list .= (i = 1 ? "" : " + ") SubStr(gname, 1, 5)
+		held_name := group_list " (" vars.currency_counter.group.Count() ")"
+    }
 
     Gui, %GUI_name%: New, % "-Caption -DPIScale +LastFound +AlwaysOnTop +ToolWindow +Border +E0x02000000 +E0x00080000 HWNDhwnd_bar"
     Gui, %GUI_name%: Color, Black
@@ -586,7 +808,7 @@ CurrencyCounter_DrawBar()
 ;  Placeholder: read item name from game (integrate with your
 ;  existing item-name detection / clipboard method)
 ; ──────────────────────────────────────────────────────────────
-CurrencyCounter_ReadItemName()
+CurrencyCounter_ReadItemName(ByRef clip_out := "")
 {
     Clipboard := ""
     SendInput, ^c
@@ -594,6 +816,7 @@ CurrencyCounter_ReadItemName()
     if ErrorLevel
         return
     clip := Clipboard
+    clip_out := clip
     name := ""
     if RegExMatch(clip, "i)Rarity: Currency\r?\n(.+?)(\r?\n|$)", m)
         name := Trim(m1)

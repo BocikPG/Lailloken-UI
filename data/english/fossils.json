@@ -31,8 +31,7 @@
   ],
   "Fractured Fossil": [
     "Creates a split copy",
-    "Cannot be used to split Influenced,",
-    "Enchanted, Fractured, or Synthesised items"
+    "Cannot be used to split Influenced, Enchanted, Fractured, or Synthesised items"
   ],
   "Frigid Fossil": [
     "More Cold modifiers",
@@ -92,8 +91,7 @@
     "No Mana modifiers"
   ],
   "Tangled Fossil": [
-    "Makes a random modifier type much more likely and prevents",
-    "another random modifier type",
+    "Makes a random modifier type much more likely and prevents another random modifier type",
     "Effects revealed once resonator is fully socketed"
   ]
 }
