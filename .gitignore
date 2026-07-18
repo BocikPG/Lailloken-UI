@@ -22,3 +22,9 @@ data/global/?stash-ninja??prices*
 data/global/leagues*.json
 
 .vscode
+
+Exile UI.ahk
+modules/
+data/
+cheat-sheets 2/
+img/
