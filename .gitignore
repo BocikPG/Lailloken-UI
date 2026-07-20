@@ -25,6 +25,6 @@ data/global/leagues*.json
 
 Exile UI.ahk
 modules/
-data/
 cheat-sheets 2/
 img/
+config.ini

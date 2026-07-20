@@ -1,30 +1,65 @@
 
-Class CurrencyCounterAddon extends SampleAddon
+Class CurrencyCounterAddon
 {
-
-	Init()
+	__New(name) ; name is loaded from the JSON file
 	{
-		Init_currency_counter()
-		instance := this
+		StringLower, name, name 
+		this.name := name, this.settings := {}, this.hwnd := {}
+		this.addon_path := "add-ons\" name  ; path to the add-on's folder
+		this.config_path := this.addon_path "\config" vars.poe_version ".ini" ; vars.poe_version is blank for PoE1 and " 2" for PoE2 // split into separate configs not necessarily required
+
+		If !FileExist(this.config_path)
+			IniWrite, % "", % this.config_path, settings
+		ini := IniBatchRead(this.config_path)
+
+		this.settings.fSize := (ini.UI.font ? ini.UI.font : settings.general.fSize)
+		LLK_FontDimensions(this.settings.fSize, h, w), this.settings.fWidth := w, this.settings.fHeight := h ; get approx. dimensions for font width and height (optional)
+		this.settings.hotkey_stats := ini.settings["hotkey stats"]
+		this.Init()
 	}
 
-	LogRead(log_text)
+	Hotkeys() ; called when a customizable hotkey is pressed
 	{
-		CurrencyCounter_ProcessLog(log_text)
+
 	}
 
-	Settings_menu()
-	{
-		Settings_currency_counter()
-	}
+    Init()
+    {
+		If !Blank(this.settings.hotkey_stats) && (key := Hotkeys_Convert(this.settings.hotkey_stats)) ; function converts key-names to scan-codes and also checks validity
+		{
+			func := ObjBindMethod(this, "Hotkeys")
+			Hotkey, IfWinActive, ahk_group poe_window
+			Hotkey, % key, % func, on
+		}
+        Currency_Counter_instance := this
+        Init_currency_counter()
+    }
 
-	OmniClick()
+    LogRead(log_text)
+    {
+        CurrencyCounter_ProcessLog(log_text)
+    }
+
+    Settings_menu(mode := "") ; called when clicking the cogwheel-icon in the "add-ons" section of the settings menu
 	{
-		CurrencyCounter_HorticraftingClick()
-	}
+		global vars, settings
+		static fSize, wHotkey
+
+		If (mode == "refresh")
+		{
+			Settings_menu("addons_" this.name)
+			Return
+		}
+        Settings_currency_counter()
+    }
+
+    OmniClick()
+    {
+        CurrencyCounter_HorticraftingClick()
+    }
 }
 
-global instance := ""
+global Currency_Counter_instance := ""
 
 #If vars.hwnd.cc_logs.main && (vars.general.wMouse = vars.hwnd.cc_logs.main) && (vars.general.cMouse != vars.hwnd.cc_logs.name_edit) && (vars.general.cMouse != vars.hwnd.cc_logs.search_name)
 WheelUp::CurrencyCounter_ShiftCarousel("up")
@@ -52,20 +87,21 @@ LButton::CurrencyCounter_Logs2(vars.general.cMouse)
 Init_currency_counter()
 {
     local
-    global vars, settings, Json
+    global vars, settings, Json, Currency_Counter_instance
 
     If !IsObject(Json)
         Json := new JSON()
 
-    If !FileExist("ini" vars.poe_version "\currency-counter.ini")
-        IniWrite, % "", % "ini" vars.poe_version "\currency-counter.ini", settings
+    If !FileExist(Currency_Counter_instance.config_path)
+        IniWrite, % "", % Currency_Counter_instance.config_path, settings
 
     If IsObject(settings.currency_counter)
         Return
 
-    ini := IniBatchRead("ini" vars.poe_version "\currency-counter.ini")
+    ini := IniBatchRead(Currency_Counter_instance.config_path)
 
     settings.currency_counter := {}
+	settings.features.currency_counter := !Blank(check := ini.settings["enabled"]) ? check : 1
     settings.currency_counter.ssf := !Blank(check := ini.settings["ssf mode"]) ? check : 0
     settings.currency_counter.fSize := !Blank(check := ini.settings["font-size"]) ? check : settings.general.fSize
 
@@ -117,19 +153,34 @@ Init_currency_counter()
 
     ; Fossil name -> array of effect description lines
     vars.currency_counter.fossils := {}
-    If FileExist("data\english\fossils.json")
+    If FileExist(Currency_Counter_instance.addon_path "\data\english\fossils.json")
     {
-        FileRead, raw_fossils, % "data\english\fossils.json"
+        FileRead, raw_fossils, % Currency_Counter_instance.addon_path "\data\english\fossils.json"
         vars.currency_counter.fossils := IsObject(check := Json.Load(raw_fossils)) ? check : {}
     }
 
-    ; Horticrafting station screen-check – a self-contained single-pixel
-    ; check (same idea as the "close_button" check in screen-checks.ahk),
-    ; but stored in this module's own ini so nothing outside
-    ; currency-counter-module needs touching. Calibrate with
-    ; CurrencyCounter_HorticraftingCalibrate().
-    coords := StrSplit(ini.horticrafting.coordinates, ",", " ", 2)
-    vars.currency_counter.horticrafting := {"x1": coords.1, "y1": coords.2, "color1": ini.horticrafting["color 1"]}
+    ; Horticrafting station screen-check – reuses the existing image-check
+    ; machinery from screen-checks.ahk (vars.imagesearch + Screenchecks_
+    ; ImageSearch()) instead of duplicating that logic here. Registering
+    ; it into vars.imagesearch.list/.search also means it shows up in the
+    ; existing screen-check settings menu for calibration, same as any
+    ; other check – no separate calibration code needed in this module.
+    ;
+    ; NOTE: this still needs a reference image at
+    ;   img\Recognition (<height>p)\GUI\horticrafting<poe_version>.bmp
+    ; captured once through that existing calibration UI. checks.x/y/w/h
+    ; below was measured on a 1920x1080 screenshot ("HORTIC" out of the
+    ; "HORTICRAFTING" title, x1 483 y1 183 x2 568 y2 213) and is expressed
+    ; as a fraction of vars.client.h (same scaling convention as e.g.
+    ; runeshaping/runeshaping2 below) so it lands in the right spot at
+    ; any resolution, not just 1080p.
+    ini_sc := IniBatchRead("ini" vars.poe_version "\screen checks (" vars.client.h "p).ini")
+    vars.imagesearch.list.horticrafting := 1
+    If !LLK_HasVal(vars.imagesearch.search, "horticrafting")
+        vars.imagesearch.search.Push("horticrafting")
+    parse := StrSplit(ini_sc.horticrafting["last coordinates"], ",")
+    vars.imagesearch.horticrafting := {"check": 0, "x1": parse.1, "y1": parse.2, "x2": parse.3, "y2": parse.4}
+    vars.imagesearch.checks.horticrafting := {"x": Round(vars.client.h * (483/1080)), "y": Round(vars.client.h * (183/1080)), "w": Round(vars.client.h * (85/1080)), "h": Round(vars.client.h * (30/1080))}
 
     vars.hwnd.currency_counter := {"main": "", "drag": ""}
     vars.hwnd.currency_counter_table := {"main": ""}
@@ -159,12 +210,12 @@ Init_currency_counter()
 CurrencyCounter_LoadSession(id)
 {
     local
-    global vars, settings, Json
+    global vars, settings, Json, Currency_Counter_instance
 
     If !IsObject(Json)
         Json := new JSON()
 
-    ini := IniBatchRead("ini" vars.poe_version "\currency-counter.ini")
+    ini := IniBatchRead(Currency_Counter_instance.config_path)
 
     raw_section := ini["session_" id "_currencies"]
     vars.currency_counter.currencies := {}
@@ -194,7 +245,7 @@ CurrencyCounter_NewSession()
 CurrencyCounter_SetActive(id)
 {
     local
-    global vars, settings
+    global vars, settings, Currency_Counter_instance
 
     If Blank(id)
     {
@@ -205,7 +256,7 @@ CurrencyCounter_SetActive(id)
     CurrencyCounter_LoadSession(id)
 
     settings.currency_counter.active := id
-    IniWrite, % id, % "ini" vars.poe_version "\currency-counter.ini", settings, active
+    IniWrite, % id, % Currency_Counter_instance.config_path, settings, active
     vars.currency_counter.picked := 0, vars.currency_counter.name := "", vars.currency_counter.group := []
     CurrencyCounter_DrawBar()
     Return 1
@@ -214,32 +265,32 @@ CurrencyCounter_SetActive(id)
 CurrencyCounter_DeleteSession(id)
 {
     local
-    global vars, settings
+    global vars, settings, Currency_Counter_instance
 
     ; Remove from index
     settings.currency_counter.sessions.Delete(id)
     CurrencyCounter_SaveIndex()
 
     ; Remove INI sections
-    IniDelete, % "ini" vars.poe_version "\currency-counter.ini", % "session_" id
-    IniDelete, % "ini" vars.poe_version "\currency-counter.ini", % "session_" id "_currencies"
+    IniDelete, % Currency_Counter_instance.config_path, % "session_" id
+    IniDelete, % Currency_Counter_instance.config_path, % "session_" id "_currencies"
 }
 
 CurrencyCounter_SaveIndex()
 {
     local
-    global vars, settings, Json
+    global vars, settings, Json, Currency_Counter_instance
 
     If !IsObject(Json)
         Json := new JSON()
 
-    IniWrite, % Json.Dump(settings.currency_counter.sessions), % "ini" vars.poe_version "\currency-counter.ini", settings, sessions
+    IniWrite, % Json.Dump(settings.currency_counter.sessions), % Currency_Counter_instance.config_path, settings, sessions
 }
 
 CurrencyCounter_SaveCurrency(currency_name)
 {
     local
-    global vars, settings, Json
+    global vars, settings, Json, Currency_Counter_instance
 
     If !IsObject(Json)
         Json := new JSON()
@@ -253,7 +304,7 @@ CurrencyCounter_SaveCurrency(currency_name)
     If !IsObject(entry)
         Return
 
-    IniWrite, % Json.Dump(entry), % "ini" vars.poe_version "\currency-counter.ini", % "session_" id "_currencies", % currency_name
+    IniWrite, % Json.Dump(entry), % Currency_Counter_instance.config_path, % "session_" id "_currencies", % currency_name
 }
 
 
@@ -317,9 +368,16 @@ CurrencyCounter_IsGroupable(name)
 ; ──────────────────────────────────────────────────────────────
 ;  Horticrafting station
 ;
-;  Self-contained screen-check (single-pixel, same idea as the
-;  "close_button" check in screen-checks.ahk) plus a full-screen
-;  overlay window, kept entirely inside this module.
+;  Screen-check reuses the existing vars.imagesearch data + the
+;  existing Screenchecks_ImageSearch() function from screen-checks.ahk
+;  (same storage/lookup as e.g. "skilltree"/"atlas") instead of
+;  duplicating that logic here. Since it's registered into
+;  vars.imagesearch.list/.search in Init_currency_counter(), it also
+;  shows up in the existing screen-check settings menu for
+;  calibration/reference-image capture like any other check – no
+;  separate calibration code needed in this module. A full-screen
+;  overlay window is kept here, following the same pattern
+;  stash-ninja uses for its window.
 ;
 ;  CurrencyCounter_HorticraftingClick() is the entry point meant to
 ;  be called from the omni-key's click handler (e.g. a method on the
@@ -327,33 +385,6 @@ CurrencyCounter_IsGroupable(name)
 ;  and, if the horticrafting station is on screen, toggles the
 ;  overlay; otherwise it does nothing.
 ; ──────────────────────────────────────────────────────────────
-CurrencyCounter_HorticraftingCheck()
-{
-    local
-    global vars
-
-    check := vars.currency_counter.horticrafting
-    If Blank(check.x1) || Blank(check.y1) || Blank(check.color1)
-        Return 0 ; not calibrated yet
-
-    PixelSearch, x, y, % vars.client.x + check.x1, % vars.client.y + check.y1, % vars.client.x + check.x1, % vars.client.y + check.y1, % check.color1, 10, Fast RGB
-    Return !ErrorLevel
-}
-
-; Point the mouse at a pixel that's only present on the horticrafting
-; station screen, then call this (e.g. bind it to a temporary hotkey)
-; to calibrate. Saved into this module's own ini section.
-CurrencyCounter_HorticraftingCalibrate()
-{
-    local
-    global vars
-
-    PixelGetColor, color, % vars.general.xMouse, % vars.general.yMouse, RGB
-    vars.currency_counter.horticrafting := {"x1": vars.general.xMouse - vars.client.x, "y1": vars.general.yMouse - vars.client.y, "color1": color}
-    IniWrite, % vars.currency_counter.horticrafting.x1 ", " vars.currency_counter.horticrafting.y1, % "ini" vars.poe_version "\currency-counter.ini", horticrafting, coordinates
-    IniWrite, % color, % "ini" vars.poe_version "\currency-counter.ini", horticrafting, color 1
-    Return color
-}
 
 ; Full-screen click-through overlay covering the game client, toggled
 ; on/off each call. Currently empty – controls get added later.
@@ -388,7 +419,7 @@ CurrencyCounter_HorticraftingClick()
 {
     local
 
-    If !CurrencyCounter_HorticraftingCheck()
+    If !Screenchecks_ImageSearch("horticrafting")
         Return
 
     CurrencyCounter_HorticraftingOverlay()
@@ -577,11 +608,23 @@ CurrencyCounter_LClick()
     SendInput, {Blind}^c ; copy item under cursor
     ClipWait, 0.1
     if ErrorLevel
-        return ; clipboard empty – no item, do nothing
+	{
+		vars.currency_counter.picked := 0
+        vars.currency_counter.name := ""  
+        vars.currency_counter.group := []
+		CurrencyCounter_DrawBar()
+		return ; clipboard empty – no item, do nothing
+	}
 
     ; Check if clipboard contains a valid item (at least "Rarity:" line)
     if !RegExMatch(Clipboard, "i)Rarity:")
-        return ; not an item – do not increment
+	{
+		vars.currency_counter.picked := 0
+        vars.currency_counter.name := ""  
+        vars.currency_counter.group := []
+		CurrencyCounter_DrawBar()
+		return
+	}
 
     ; --- Group apply: everything staged (e.g. fossils) gets +1. The
     ;     group is NOT cleared here – it stays armed, just like a single
@@ -732,7 +775,7 @@ CurrencyCounter_ProcessLog(line)
 CurrencyCounter_Click(hotkey)
 {
     local
-    global vars, settings
+    global vars, settings, Currency_Counter_instance
     static width, height
 
     check := LLK_HasVal(vars.hwnd.currency_counter, vars.general.cMouse)
@@ -744,8 +787,8 @@ CurrencyCounter_Click(hotkey)
         If (hotkey = 2)
         {
             settings.currency_counter.bar_x := "", settings.currency_counter.bar_y := ""
-            IniDelete, % "ini" vars.poe_version "\currency-counter.ini", settings, bar-x
-            IniDelete, % "ini" vars.poe_version "\currency-counter.ini", settings, bar-y
+            IniDelete, % Currency_Counter_instance.config_path, settings, bar-x
+            IniDelete, % Currency_Counter_instance.config_path, settings, bar-y
             CurrencyCounter_DrawBar()
             Return
         }
@@ -767,8 +810,8 @@ CurrencyCounter_Click(hotkey)
         If !Blank(xPos) || !Blank(yPos)
         {
             settings.currency_counter.bar_x := xPos, settings.currency_counter.bar_y := yPos
-            IniWrite, % xPos, % "ini" vars.poe_version "\currency-counter.ini", settings, bar-x
-            IniWrite, % yPos, % "ini" vars.poe_version "\currency-counter.ini", settings, bar-y
+            IniWrite, % xPos, % Currency_Counter_instance.config_path, settings, bar-x
+            IniWrite, % yPos, % Currency_Counter_instance.config_path, settings, bar-y
             CurrencyCounter_DrawBar()
         }
         Return
@@ -1364,7 +1407,7 @@ CurrencyCounter_Logs(cHWND := "")
 CurrencyCounter_Logs2(cHWND)
 {
 	local
-	global vars, settings
+	global vars, settings, Currency_Counter_instance
 
 	; ── Edit field notifications ──────────────────────────────
 	If (cHWND = vars.hwnd.cc_logs.name_edit)
@@ -1452,8 +1495,8 @@ CurrencyCounter_Logs2(cHWND)
 			KeyWait, LButton
 			WinGetPos, xPos, yPos, w, h, % "ahk_id " vars.hwnd.cc_logs.main
 			vars.cc_logs.x := xPos, vars.cc_logs.y := yPos, vars.general.drag := 0
-			IniWrite, % xPos, % "ini" vars.poe_version "\currency-counter.ini", settings, logs-x
-			IniWrite, % yPos, % "ini" vars.poe_version "\currency-counter.ini", settings, logs-y
+			IniWrite, % xPos, % Currency_Counter_instance.config_path, settings, logs-x
+			IniWrite, % yPos, % Currency_Counter_instance.config_path, settings, logs-y
 			Return
 		}
 		Return
@@ -1474,7 +1517,7 @@ CurrencyCounter_Logs2(cHWND)
 				Break
 			}
 		settings.currency_counter.display_cur := next
-		IniWrite, % next, % "ini" vars.poe_version "\currency-counter.ini", settings, display-currency
+		IniWrite, % next, % Currency_Counter_instance.config_path, settings, display-currency
 		CurrencyCounter_Logs()
 		Return
 
@@ -1703,7 +1746,7 @@ CurrencyCounter_CurPicker(cHWND)
 CurrencyCounter_CurPickerClick()
 {
 	local
-	global vars, settings
+	global vars, settings, Currency_Counter_instance
 
 	cHWND := A_GuiControl ; hwnd of the clicked Text control
 	check := LLK_HasVal(vars.hwnd.cc_cur_picker, cHWND)
@@ -1712,7 +1755,7 @@ CurrencyCounter_CurPickerClick()
 	KeyWait, LButton
 	chosen := SubStr(check, 5) ; strip "opt_"
 	settings.currency_counter.display_cur := chosen
-	IniWrite, % chosen, % "ini" vars.poe_version "\currency-counter.ini", settings, display-currency
+	IniWrite, % chosen, % Currency_Counter_instance.config_path, settings, display-currency
 	LLK_Overlay(vars.hwnd.cc_cur_picker.main, "destroy")
 	vars.hwnd.cc_cur_picker := {"main": ""}
 	CurrencyCounter_Logs()
@@ -2131,7 +2174,7 @@ Return
 CurrencyCounter_RatioEditCommit(raw)
 {
 	local
-	global vars, settings
+	global vars, settings, Currency_Counter_instance
 
 	which := vars.hwnd.cc_ratio_edit.which
 	If !which
@@ -2161,15 +2204,15 @@ CurrencyCounter_RatioEditCommit(raw)
 	{
 		settings.currency_counter.chaos_div := val
 		settings.currency_counter.chaos_div_updated := A_NowUTC
-		IniWrite, % val, % "ini" vars.poe_version "\currency-counter.ini", settings, chaos-div
-		IniWrite, % A_NowUTC, % "ini" vars.poe_version "\currency-counter.ini", settings, chaos-div-updated
+		IniWrite, % val, % Currency_Counter_instance.config_path, settings, chaos-div
+		IniWrite, % A_NowUTC, % Currency_Counter_instance.config_path, settings, chaos-div-updated
 	}
 	Else
 	{
 		settings.currency_counter.exalt_div := val
 		settings.currency_counter.exalt_div_updated := A_NowUTC
-		IniWrite, % val, % "ini" vars.poe_version "\currency-counter.ini", settings, exalt-div
-		IniWrite, % A_NowUTC, % "ini" vars.poe_version "\currency-counter.ini", settings, exalt-div-updated
+		IniWrite, % val, % Currency_Counter_instance.config_path, settings, exalt-div
+		IniWrite, % A_NowUTC, % Currency_Counter_instance.config_path, settings, exalt-div-updated
 	}
 	vars.hwnd.cc_ratio_edit := {"main": "", "input": "", "which": ""}
 	CurrencyCounter_UpdateExaltRate()
@@ -2351,26 +2394,27 @@ Settings_currency_counter()
 Settings_currency_counter2(cHWND)
 {
     local
-    global vars, settings
+    global vars, settings, Currency_Counter_instance
 
     If (cHWND = vars.hwnd.settings.currency_counter_enable)
 	{
 	    IniWrite, % (settings.features.currency_counter := LLK_ControlGet(cHWND))
-	        , % "ini" vars.poe_version "\config.ini", features, enable currency-counter
+	        , % Currency_Counter_instance.config_path, settings, enabled
 	    If settings.features.currency_counter
 		{
 	        CurrencyCounter_DrawBar()
 		}
 	    Else
 	        LLK_Overlay(vars.hwnd.currency_counter.main, "destroy")
-	    Settings_menu("addons_" "currency counter")
+		;Settings_menu("addons_" Currency_Counter_instance.name) ; fallback
+	    Currency_Counter_instance.Settings_menu("refresh")
 	    Return
 	}
     If (cHWND = vars.hwnd.settings.currency_counter_ssf)
     {
         IniWrite, % (settings.currency_counter.ssf := LLK_ControlGet(cHWND))
-            , % "ini" vars.poe_version "\currency-counter.ini", settings, ssf mode
-        Settings_menu("addons_" "currency counter")
+            , % Currency_Counter_instance.config_path, settings, ssf mode
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2386,10 +2430,10 @@ Settings_currency_counter2(cHWND)
             Sleep, 150
         }
         If (settings.currency_counter.max_rows > 0)
-            IniWrite, % settings.currency_counter.max_rows, % "ini" vars.poe_version "\currency-counter.ini", settings, max-rows
+            IniWrite, % settings.currency_counter.max_rows, % Currency_Counter_instance.config_path, settings, max-rows
         Else
-            IniDelete, % "ini" vars.poe_version "\currency-counter.ini", settings, max-rows
-        Settings_menu("addons_" "currency counter")
+            IniDelete, % Currency_Counter_instance.config_path, settings, max-rows
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2405,8 +2449,8 @@ Settings_currency_counter2(cHWND)
         }
         LLK_FontDimensions(settings.currency_counter.fSize, h, w)
         settings.currency_counter.fHeight := h, settings.currency_counter.fWidth := w
-        IniWrite, % settings.currency_counter.fSize, % "ini" vars.poe_version "\currency-counter.ini", settings, font-size
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.fSize, % Currency_Counter_instance.config_path, settings, font-size
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2420,8 +2464,8 @@ Settings_currency_counter2(cHWND)
             GuiControl, Text, % vars.hwnd.settings.currency_counter_spacing, % settings.currency_counter.spacing
             Sleep, 150
         }
-        IniWrite, % settings.currency_counter.spacing, % "ini" vars.poe_version "\currency-counter.ini", settings, spacing
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.spacing, % Currency_Counter_instance.config_path, settings, spacing
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2437,8 +2481,8 @@ Settings_currency_counter2(cHWND)
             GuiControl, Text, % vars.hwnd.settings.currency_counter_vcount, % settings.currency_counter.visibleCount
             Sleep, 150
         }
-        IniWrite, % settings.currency_counter.visibleCount, % "ini" vars.poe_version "\currency-counter.ini", settings, visible-sessions
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.visibleCount, % Currency_Counter_instance.config_path, settings, visible-sessions
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2452,8 +2496,8 @@ Settings_currency_counter2(cHWND)
             GuiControl, Text, % vars.hwnd.settings.currency_counter_nstale, % settings.currency_counter.ninja_stale_hours
             Sleep, 150
         }
-        IniWrite, % settings.currency_counter.ninja_stale_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, ninja-stale-hours
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.ninja_stale_hours, % Currency_Counter_instance.config_path, settings, ninja-stale-hours
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2461,8 +2505,8 @@ Settings_currency_counter2(cHWND)
     If (cHWND = vars.hwnd.settings.currency_counter_ninja)
     {
         IniWrite, % (settings.currency_counter.ninja_prices := LLK_ControlGet(cHWND))
-            , % "ini" vars.poe_version "\currency-counter.ini", settings, ninja-prices
-        Settings_menu("addons_" "currency counter")
+            , % Currency_Counter_instance.config_path, settings, ninja-prices
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2472,8 +2516,8 @@ Settings_currency_counter2(cHWND)
 	If (cHWND = vars.hwnd.settings.currency_counter_rowcount) {
 	    ; default = 0  (auto)
 	    settings.currency_counter.max_rows := 0
-	    IniDelete, % "ini" vars.poe_version "\currency-counter.ini", settings, max-rows
-	    Settings_menu("addons_" "currency counter")
+	    IniDelete, % Currency_Counter_instance.config_path, settings, max-rows
+	    Currency_Counter_instance.Settings_menu("refresh")
 	    If WinExist("ahk_id " vars.hwnd.cc_logs.main)
 	        CurrencyCounter_Logs()
 	    Return
@@ -2481,10 +2525,10 @@ Settings_currency_counter2(cHWND)
 	If (cHWND = vars.hwnd.settings.currency_counter_fsize) {
 	    ; default = general font size
 	    settings.currency_counter.fSize := settings.general.fSize
-	    IniWrite, % settings.currency_counter.fSize, % "ini" vars.poe_version "\currency-counter.ini", settings, font-size
+	    IniWrite, % settings.currency_counter.fSize, % Currency_Counter_instance.config_path, settings, font-size
 	    LLK_FontDimensions(settings.currency_counter.fSize, h, w)
 	    settings.currency_counter.fHeight := h, settings.currency_counter.fWidth := w
-	    Settings_menu("addons_" "currency counter")
+	    Currency_Counter_instance.Settings_menu("refresh")
 	    If WinExist("ahk_id " vars.hwnd.cc_logs.main)
 	        CurrencyCounter_Logs()
 	    Return
@@ -2492,8 +2536,8 @@ Settings_currency_counter2(cHWND)
 	If (cHWND = vars.hwnd.settings.currency_counter_spacing) {
 	    ; default = 10
 	    settings.currency_counter.spacing := 10
-	    IniWrite, % settings.currency_counter.spacing, % "ini" vars.poe_version "\currency-counter.ini", settings, spacing
-	    Settings_menu("addons_" "currency counter")
+	    IniWrite, % settings.currency_counter.spacing, % Currency_Counter_instance.config_path, settings, spacing
+	    Currency_Counter_instance.Settings_menu("refresh")
 	    If WinExist("ahk_id " vars.hwnd.cc_logs.main)
 	        CurrencyCounter_Logs()
 	    Return
@@ -2501,16 +2545,16 @@ Settings_currency_counter2(cHWND)
 	If (cHWND = vars.hwnd.settings.currency_counter_vcount) {
 	    ; default = 0  (auto: 2 for SSF, 4 for trade)
 	    settings.currency_counter.visibleCount := 0
-	    IniDelete, % "ini" vars.poe_version "\currency-counter.ini", settings, visible-sessions
-	    Settings_menu("addons_" "currency counter")
+	    IniDelete, % Currency_Counter_instance.config_path, settings, visible-sessions
+	    Currency_Counter_instance.Settings_menu("refresh")
 	    If WinExist("ahk_id " vars.hwnd.cc_logs.main)
 	        CurrencyCounter_Logs()
 	    Return
 	}
 	If (cHWND = vars.hwnd.settings.currency_counter_nstale) {
 	    settings.currency_counter.ninja_stale_hours := 3
-	    IniWrite, % settings.currency_counter.ninja_stale_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, ninja-stale-hours
-	    Settings_menu("addons_" "currency counter")
+	    IniWrite, % settings.currency_counter.ninja_stale_hours, % Currency_Counter_instance.config_path, settings, ninja-stale-hours
+	    Currency_Counter_instance.Settings_menu("refresh")
 	    If WinExist("ahk_id " vars.hwnd.cc_logs.main)
 	        CurrencyCounter_Logs()
 	    Return
@@ -2524,8 +2568,8 @@ Settings_currency_counter2(cHWND)
             GuiControl, Text, % vars.hwnd.settings.currency_counter_pwarn, % settings.currency_counter.price_warn_hours
             Sleep, 150
         }
-        IniWrite, % settings.currency_counter.price_warn_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, price-warn-hours
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.price_warn_hours, % Currency_Counter_instance.config_path, settings, price-warn-hours
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2533,8 +2577,8 @@ Settings_currency_counter2(cHWND)
     If (cHWND = vars.hwnd.settings.currency_counter_pwarn)
     {
         settings.currency_counter.price_warn_hours := 6
-        IniWrite, % settings.currency_counter.price_warn_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, price-warn-hours
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.price_warn_hours, % Currency_Counter_instance.config_path, settings, price-warn-hours
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2548,8 +2592,8 @@ Settings_currency_counter2(cHWND)
             GuiControl, Text, % vars.hwnd.settings.currency_counter_pstale, % settings.currency_counter.price_stale_hours
             Sleep, 150
         }
-        IniWrite, % settings.currency_counter.price_stale_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, price-stale-hours
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.price_stale_hours, % Currency_Counter_instance.config_path, settings, price-stale-hours
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2557,8 +2601,8 @@ Settings_currency_counter2(cHWND)
     If (cHWND = vars.hwnd.settings.currency_counter_pstale)
     {
         settings.currency_counter.price_stale_hours := 12
-        IniWrite, % settings.currency_counter.price_stale_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, price-stale-hours
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.price_stale_hours, % Currency_Counter_instance.config_path, settings, price-stale-hours
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2572,8 +2616,8 @@ Settings_currency_counter2(cHWND)
             GuiControl, Text, % vars.hwnd.settings.currency_counter_rwarn, % settings.currency_counter.rate_warn_hours
             Sleep, 150
         }
-        IniWrite, % settings.currency_counter.rate_warn_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, rate-warn-hours
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.rate_warn_hours, % Currency_Counter_instance.config_path, settings, rate-warn-hours
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2581,8 +2625,8 @@ Settings_currency_counter2(cHWND)
     If (cHWND = vars.hwnd.settings.currency_counter_rwarn)
     {
         settings.currency_counter.rate_warn_hours := 6
-        IniWrite, % settings.currency_counter.rate_warn_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, rate-warn-hours
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.rate_warn_hours, % Currency_Counter_instance.config_path, settings, rate-warn-hours
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2596,8 +2640,8 @@ Settings_currency_counter2(cHWND)
             GuiControl, Text, % vars.hwnd.settings.currency_counter_rstale, % settings.currency_counter.rate_stale_hours
             Sleep, 150
         }
-        IniWrite, % settings.currency_counter.rate_stale_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, rate-stale-hours
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.rate_stale_hours, % Currency_Counter_instance.config_path, settings, rate-stale-hours
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
@@ -2605,8 +2649,8 @@ Settings_currency_counter2(cHWND)
     If (cHWND = vars.hwnd.settings.currency_counter_rstale)
     {
         settings.currency_counter.rate_stale_hours := 12
-        IniWrite, % settings.currency_counter.rate_stale_hours, % "ini" vars.poe_version "\currency-counter.ini", settings, rate-stale-hours
-        Settings_menu("addons_" "currency counter")
+        IniWrite, % settings.currency_counter.rate_stale_hours, % Currency_Counter_instance.config_path, settings, rate-stale-hours
+        Currency_Counter_instance.Settings_menu("refresh")
         If WinExist("ahk_id " vars.hwnd.cc_logs.main)
             CurrencyCounter_Logs()
         Return
