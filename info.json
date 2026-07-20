@@ -1,15 +1,17 @@
 {
 	"name": "Currency Counter",
-	"description": "Counts currency you spend in active session",
 	"className": "CurrencyCounterAddon",
-	"repo": "https://github.com/BocikPG/Lailloken-UI",
-	"version": "0.2.0",
-	"PoE1": true,
-	"PoE2": true,
 	"creators": [
 		{
 			"name": "BocikPG",
 			"link": "https://github.com/BocikPG"
 		}
-	]
+	],
+	"description": "Counts currency you spend in active session",
+	"games": [
+		"PoE1",
+		"PoE2"
+	],
+	"repo": "https://github.com/BocikPG/Lailloken-UI/tree/lailloken-add-on",
+	"version": "0.3.0"
 }

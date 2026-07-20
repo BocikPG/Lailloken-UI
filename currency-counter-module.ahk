@@ -3,7 +3,6 @@ Class CurrencyCounterAddon
 {
 	__New(name) ; name is loaded from the JSON file
 	{
-		StringLower, name, name 
 		this.name := name, this.settings := {}, this.hwnd := {}
 		this.addon_path := "add-ons\" name  ; path to the add-on's folder
 		this.config_path := this.addon_path "\config" vars.poe_version ".ini" ; vars.poe_version is blank for PoE1 and " 2" for PoE2 // split into separate configs not necessarily required
